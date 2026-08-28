@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "../../lib/auth-context";
 import {
   Mic,
   MicOff,
@@ -20,6 +21,10 @@ import {
   Lock,
   Radio,
   FileText,
+  UserCheck,
+  ShieldCheck,
+  LogOut,
+  ExternalLink,
 } from "lucide-react";
 
 const SITES = [
@@ -44,6 +49,7 @@ const HAZARD_SHORTCUTS = [
 
 export default function WorkerApp() {
   const router = useRouter();
+  const { user, role, signOut } = useAuth();
   const [text, setText] = useState("");
   const [location, setLocation] = useState("Tank Farm A");
   const [isListening, setIsListening] = useState(false);
@@ -54,6 +60,13 @@ export default function WorkerApp() {
   const [offlineCount, setOfflineCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const recognitionRef = useRef<any>(null);
+
+  // Set default location from worker profile if available
+  useEffect(() => {
+    if (user?.user_metadata?.site) {
+      setLocation(user.user_metadata.site);
+    }
+  }, [user]);
 
   // Fix SSR hydration — read localStorage only in useEffect
   useEffect(() => {
@@ -231,8 +244,38 @@ export default function WorkerApp() {
             </div>
           </div>
 
-          {/* Network & Offline Status Control */}
+          {/* Network & Offline & Profile Status Control */}
           <div className="flex items-center gap-2">
+            {/* HSE Officer Dashboard Shortcut */}
+            {(role === "hse_officer" || role === "site_admin") && (
+              <button
+                onClick={() => router.push("/dashboard")}
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-[#FF4500] text-[#1C1917] text-[10px] font-black uppercase tracking-wider border-2 border-[#1C1917] cursor-pointer hover:bg-[#1C1917] hover:text-[#E4E2DD] transition-colors"
+                title="Switch to HSE Executive Dashboard"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>Executive Dashboard</span>
+                <ExternalLink className="h-3 w-3" />
+              </button>
+            )}
+
+            {/* User Persona Chip */}
+            {user ? (
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-[#1C1917]/5 border border-[#1C1917]/20 text-[10px] font-black uppercase tracking-wider text-[#1C1917]">
+                <UserCheck className="h-3 w-3 text-[#FF4500]" />
+                <span className="truncate max-w-[120px]">
+                  {user.user_metadata?.full_name || (user as any).role || "Worker"}
+                </span>
+              </div>
+            ) : (
+              <button
+                onClick={() => router.push("/login?portal=worker")}
+                className="hidden sm:block text-[10px] font-black uppercase tracking-wider text-[#1C1917]/60 hover:text-[#FF4500] transition-colors cursor-pointer"
+              >
+                Badge Login
+              </button>
+            )}
+
             {offlineCount > 0 && isOnline && (
               <button
                 onClick={syncOfflineQueue}
@@ -240,9 +283,10 @@ export default function WorkerApp() {
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#F59E0B] text-[#1C1917] text-[10px] font-black uppercase tracking-wider border-2 border-[#1C1917] cursor-pointer hover:bg-[#FF4500] transition-colors"
               >
                 <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
-                Sync {offlineCount} Saved
+                Sync {offlineCount}
               </button>
             )}
+
             <button
               onClick={() => {
                 const newStatus = !isOnline;
@@ -264,6 +308,19 @@ export default function WorkerApp() {
               )}
               <span>{isOnline ? "Online" : `Offline (${offlineCount})`}</span>
             </button>
+
+            {user && (
+              <button
+                onClick={async () => {
+                  await signOut();
+                  router.push("/login");
+                }}
+                title="Switch Account / Sign Out"
+                className="p-1.5 border border-[#1C1917]/25 hover:bg-[#FF4500] hover:text-white transition-colors cursor-pointer text-[#1C1917]"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </header>

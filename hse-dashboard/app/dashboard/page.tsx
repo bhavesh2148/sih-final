@@ -221,33 +221,39 @@ export default function Dashboard() {
     );
   }
 
-  // --- ERROR STATE ---
-  if (error) {
+  // --- WORKER ROLE CLEARANCE CHECK ---
+  const userRole = (user as any)?.role || (user as any)?.user_metadata?.role;
+  if (user && userRole === "worker") {
     return (
-      <div className="min-h-screen bg-[#E4E2DD] flex items-center justify-center px-6">
-        <div className="border-2 border-[#1C1917] bg-[#E4E2DD] max-w-lg w-full text-center">
-          <div className="bg-[#FF4500] p-4 border-b-2 border-[#1C1917]">
-            <AlertTriangle className="h-10 w-10 text-[#1C1917] mx-auto" />
+      <div className="min-h-screen bg-[#E4E2DD] flex items-center justify-center px-6 font-sans">
+        <div className="border-2 border-[#1C1917] bg-[#E4E2DD] max-w-md w-full shadow-2xl p-6 sm:p-8 text-center">
+          <div className="p-3 bg-[#F59E0B] border-2 border-[#1C1917] inline-block mb-4">
+            <ShieldCheck className="h-8 w-8 text-[#1C1917]" />
           </div>
-          <div className="p-8">
-            <h2 className="font-display text-3xl uppercase text-[#1C1917] mb-4">
-              Connection Failed
-            </h2>
-            <p className="text-sm font-medium text-[#1C1917]/70 mb-2">
-              Could not reach the SIFense API server.
-            </p>
-            <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/40 mb-6">
-              {error}
-            </p>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FF4500] block mb-1">
+            Access Restricted
+          </span>
+          <h2 className="font-display text-2xl sm:text-3xl uppercase text-[#1C1917] mb-2">
+            HSE Officer Clearance Required
+          </h2>
+          <p className="text-xs font-medium text-[#1C1917]/70 leading-relaxed mb-6">
+            You are currently signed in under the <strong>Field Worker Portal</strong> ({user.user_metadata?.full_name || user.email || "Worker Account"}). The Executive SIF Dashboard requires verified Safety Supervisor clearance.
+          </p>
+          <div className="space-y-2">
             <button
-              onClick={() => {
-                setLoading(true);
-                setError(null);
-                fetchData();
-              }}
-              className="btn-slide bg-[#1C1917] text-[#E4E2DD] px-8 py-3 text-sm font-bold uppercase tracking-widest border-2 border-[#1C1917] cursor-pointer"
+              onClick={() => router.push("/worker")}
+              className="w-full btn-slide bg-[#1C1917] text-[#E4E2DD] py-3 text-xs font-black uppercase tracking-widest border-2 border-[#1C1917] cursor-pointer flex items-center justify-center gap-2"
             >
-              <span>Retry Connection</span>
+              <span>Return to Worker Safety App →</span>
+            </button>
+            <button
+              onClick={async () => {
+                await signOut();
+                router.push("/login?portal=officer");
+              }}
+              className="w-full py-2.5 bg-transparent hover:bg-[#FF4500] hover:text-[#1C1917] text-[#1C1917] text-[11px] font-black uppercase tracking-wider border border-[#1C1917]/30 cursor-pointer transition-colors"
+            >
+              Switch to HSE Officer Login
             </button>
           </div>
         </div>
