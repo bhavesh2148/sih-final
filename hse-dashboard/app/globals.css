@@ -1,26 +1,118 @@
 @import "tailwindcss";
 
+/* =============================================
+   SIFense Brutalist Design System
+   ============================================= */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-primary: #E4E2DD;
+  --bg-dark: #1C1917;
+  --accent-danger: #FF4500;
+  --accent-warning: #F59E0B;
+  --text-primary: #1C1917;
+  --text-muted: rgba(28, 25, 23, 0.6);
+  --text-on-dark: #E4E2DD;
+  --border-color: #1C1917;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+  --font-sans: 'Inter', sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+}
+
+/* Brutalist Display Font */
+.font-display {
+  font-family: 'Inter', sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  line-height: 0.85;
+}
+
+/* Brutalist Slide Button */
+.btn-slide {
+  position: relative;
+  overflow: hidden;
+  transition: color 0.3s ease-out;
+}
+.btn-slide::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: #FFFFFF;
+  transform: translateX(-101%);
+  transition: transform 0.3s ease-out;
+  z-index: 0;
+}
+.btn-slide:hover::before { transform: translateX(0); }
+.btn-slide:hover { color: #FF4500; }
+.btn-slide span { position: relative; z-index: 1; }
+
+/* Brutalist Slide Button — Orange Variant */
+.btn-slide-orange::before {
+  background: #FF4500;
+}
+.btn-slide-orange:hover { color: #1C1917; }
+
+/* Animated Blobs (Landing Page) */
+.animate-blob-1 { animation: pulse-blob 12s infinite ease-in-out; }
+.animate-blob-2 { animation: pulse-blob 15s infinite ease-in-out reverse; }
+
+@keyframes pulse-blob {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.6; }
+  50% { transform: translate(20px, -30px) scale(1.1); opacity: 0.9; }
+}
+
+/* Slide-Up Animation */
+.slide-up {
+  animation: slide-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+  transform: translateY(40px);
+}
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+
+@keyframes slide-up {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Skeleton Pulse for Loading States */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.3; }
+}
+.skeleton-pulse {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  background: var(--bg-dark);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--accent-danger); }
+
+/* SOS Pulse Animation */
+@keyframes sos-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 69, 0, 0.7); }
+  50% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(255, 69, 0, 0); }
+}
+.sos-pulse {
+  animation: sos-pulse 1.5s ease-in-out infinite;
+}
+
+/* Emergency Flash */
+@keyframes emergency-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.emergency-flash {
+  animation: emergency-flash 0.5s ease-in-out infinite;
 }

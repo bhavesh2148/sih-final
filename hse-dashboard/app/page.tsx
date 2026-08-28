@@ -9,65 +9,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#E4E2DD] text-[#1C1917] font-sans overflow-x-hidden relative selection:bg-[#FF4500] selection:text-white">
       
-      {/* Custom Styles for Animations */}
-      <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
-        
-        body { font-family: 'Inter', sans-serif; }
-        
-        .font-display {
-          font-family: 'Inter', sans-serif;
-          font-weight: 900;
-          letter-spacing: -0.05em;
-          line-height: 0.75;
-        }
-
-        .animate-blob-1 { animation: pulse-blob 12s infinite ease-in-out; }
-        .animate-blob-2 { animation: pulse-blob 15s infinite ease-in-out reverse; }
-        
-        @keyframes pulse-blob {
-          0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.6; }
-          50% { transform: translate(20px, -30px) scale(1.1); opacity: 0.9; }
-        }
-
-        .slide-up {
-          animation: slide-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-          opacity: 0;
-          transform: translateY(40px);
-        }
-        
-        .delay-100 { animation-delay: 0.1s; }
-        .delay-200 { animation-delay: 0.2s; }
-        .delay-300 { animation-delay: 0.3s; }
-        .delay-400 { animation-delay: 0.4s; }
-
-        @keyframes slide-up {
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .btn-slide {
-          position: relative;
-          overflow: hidden;
-          transition: color 0.3s ease-out;
-        }
-        .btn-slide::before {
-          content: '';
-          position: absolute;
-          top: 0; left: 0; width: 100%; height: 100%;
-          background: #FFFFFF;
-          transform: translateX(-101%);
-          transition: transform 0.3s ease-out;
-          z-index: 0;
-        }
-        .btn-slide:hover::before { transform: translateX(0); }
-        .btn-slide:hover { color: #FF4500; }
-        .btn-slide span { position: relative; z-index: 1; }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #E4E2DD; }
-        ::-webkit-scrollbar-thumb { background: #FF4500; }
-      `}</style>
+      {/* Styles now in globals.css */}
 
       {/* Navigation */}
       <nav className="fixed top-0 left-0 w-full z-50 px-6 py-4 flex justify-between items-center bg-[#E4E2DD]/80 backdrop-blur-md border-b border-[#1C1917]/10">

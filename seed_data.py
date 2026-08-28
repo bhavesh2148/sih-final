@@ -1,3 +1,9 @@
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 import sqlite3
 import json
 import uuid
@@ -528,7 +534,14 @@ def seed_database():
     conn = sqlite3.connect("sif_database.db")
     c = conn.cursor()
     
-    # Clear existing data (optional - comment out if you want to keep existing)
+    # Ensure table exists (in case main.py hasn't run yet)
+    c.execute('''CREATE TABLE IF NOT EXISTS reports
+                 (id TEXT PRIMARY KEY, timestamp TEXT, raw_text TEXT, is_emergency INTEGER,
+                  sif_score REAL, energy_type TEXT, energy_level INTEGER, 
+                  barrier_status TEXT, barrier_level INTEGER, causal_chain TEXT, 
+                  iogp_rules TEXT, explanation TEXT, status TEXT)''')
+    
+    # Clear existing data
     c.execute("DELETE FROM reports")
     
     print(f"📊 Seeding database with {len(MOCK_REPORTS)} reports...")

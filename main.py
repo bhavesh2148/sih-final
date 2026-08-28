@@ -1,3 +1,9 @@
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 import os
 import json
 import sqlite3
@@ -11,10 +17,7 @@ from groq import Groq
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer, util
 import torch
-import shap
-import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
+
 
 load_dotenv()
 
@@ -30,7 +33,12 @@ app.add_middleware(
 )
 
 # Initialize Groq Client (Using Llama 3 for fast, multilingual NLP)
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+groq_api_key = os.getenv("GROQ_API_KEY")
+if groq_api_key:
+    client = Groq(api_key=groq_api_key)
+else:
+    client = None
+    print("⚠️  GROQ_API_KEY not set — LLM analysis will use fallback mock data")
 
 # --- Database Setup (SQLite for Hackathon Speed) ---
 def init_db():
@@ -161,10 +169,19 @@ def analyze_report_with_llm(report_text: str) -> dict:
     Return ONLY valid JSON. No markdown, no extra text.
     """
     
+    if not client:
+        # No API key — return fallback
+        return {
+            "is_emergency": False, "energy_type": "Mechanical", "energy_level": 2,
+            "barrier_status": "Degraded", "barrier_level": 2,
+            "causal_chain": {"hazard": "Moving parts", "barrier_failure": "Guard missing", "consequence": "Entanglement"},
+            "iogp_rules": ["Line of Fire"], "sif_score": 0.44, "explanation": "Fallback: No GROQ_API_KEY configured."
+        }
+
     try:
         chat_completion = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="llama3-8b-8192",
+            model="qwen/qwen3.8-27b",
             response_format={"type": "json_object"},
             temperature=0.1
         )
@@ -494,13 +511,7 @@ def get_shap_explanation(report_id: str):
                 "impact": impact
             })
     
-    for keyword, category in risk_keywords.items():
-        if keyword in text_lower:
-            explanation["key_risk_indicators"].append({
-                "keyword": keyword,
-                "category": category,
-                "impact": "High" if category in ["Missing Physical Barrier", "Safety System Bypass"] else "Medium"
-            })
+
     
     # Identify high-risk words for visualization
     explanation["text_analysis"]["high_risk_words"] = [
