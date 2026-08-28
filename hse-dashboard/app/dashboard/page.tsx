@@ -740,11 +740,11 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b-2 border-[#1C1917] bg-[#1C1917]/5 text-[10px] font-black uppercase tracking-wider text-[#1C1917]">
+          {/* Table with Terms & Conditions style scroll container */}
+          <div className="overflow-x-auto max-h-[480px] overflow-y-auto border-t-2 border-[#1C1917]/20">
+            <table className="w-full text-left border-collapse relative">
+              <thead className="sticky top-0 z-10 bg-[#E4E2DD] border-b-2 border-[#1C1917] shadow-sm">
+                <tr className="bg-[#1C1917]/10 text-[10px] font-black uppercase tracking-wider text-[#1C1917]">
                   <th className="p-4">SIF Potential</th>
                   <th className="p-4">Incident Log / Verbatim</th>
                   <th className="p-4 hidden md:table-cell">Energy Class</th>
