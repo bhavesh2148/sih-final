@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/auth-context";
 import {
@@ -9,7 +9,8 @@ import {
   Building2, ArrowUpRight, HardHat, ChevronDown,
   LogOut, UserCheck, UploadCloud, FileText, CheckCircle2,
   Sparkles, Flame, ShieldAlert, Layers, RefreshCw,
-  ExternalLink, Filter, CheckSquare
+  ExternalLink, Filter, CheckSquare, Download, FileSpreadsheet,
+  FileCode, ArrowRight, Zap
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -114,10 +115,14 @@ export default function Dashboard() {
 
   // Bulk Ingestion Studio Modal state
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkTab, setBulkTab] = useState<"file" | "demo" | "paste">("file");
   const [bulkText, setBulkText] = useState("");
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [parsedFileRows, setParsedFileRows] = useState<{ text: string; location?: string }[]>([]);
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(0);
   const [bulkResult, setBulkResult] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Addressed items tracking in local state
   const [addressedMap, setAddressedMap] = useState<Record<string, boolean>>({});
@@ -234,21 +239,21 @@ export default function Dashboard() {
     }));
   };
 
-  // Handle Bulk Ingestion Execution
+  // ⚡ HIGH-SPEED PARALLEL BULK SCREENING
   const handleRunBulkUpload = async (reportsToIngest: { text: string; location?: string }[]) => {
     if (reportsToIngest.length === 0) return;
     setBulkProcessing(true);
-    setBulkProgress(15);
+    setBulkProgress(20);
     setBulkResult(null);
 
     try {
-      setBulkProgress(40);
+      setBulkProgress(50);
       const res = await fetch("http://127.0.0.1:8000/api/v1/reports/bulk-upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reports: reportsToIngest }),
       });
-      setBulkProgress(80);
+      setBulkProgress(85);
       if (!res.ok) throw new Error("Bulk upload failed");
       const result = await res.json();
       setBulkProgress(100);
@@ -260,6 +265,90 @@ export default function Dashboard() {
     } finally {
       setBulkProcessing(false);
     }
+  };
+
+  // Handle File Parsing (CSV, JSON, TXT)
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadedFileName(file.name);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = (event.target?.result as string) || "";
+      if (file.name.endsWith(".json")) {
+        try {
+          const parsed = JSON.parse(content);
+          let items: { text: string; location?: string }[] = [];
+          if (Array.isArray(parsed)) {
+            items = parsed.map((it: any) =>
+              typeof it === "string"
+                ? { text: it, location: "JSON Upload" }
+                : {
+                    text: it.text || it.incident || it.description || it.raw_text || JSON.stringify(it),
+                    location: it.location || it.site || "JSON Upload",
+                  }
+            );
+          } else if (parsed.reports && Array.isArray(parsed.reports)) {
+            items = parsed.reports.map((it: any) =>
+              typeof it === "string"
+                ? { text: it, location: "JSON Upload" }
+                : {
+                    text: it.text || it.incident || it.description,
+                    location: it.location || "JSON Upload",
+                  }
+            );
+          }
+          setParsedFileRows(items.filter((i) => i.text.trim()));
+        } catch (err) {
+          alert("Invalid JSON format");
+        }
+      } else {
+        // CSV or TXT
+        const lines = content.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+        if (lines.length > 0) {
+          const isHeader =
+            lines[0].toLowerCase().includes("location") ||
+            lines[0].toLowerCase().includes("incident") ||
+            lines[0].toLowerCase().includes("text") ||
+            lines[0].toLowerCase().includes("description");
+          const dataLines = isHeader ? lines.slice(1) : lines;
+          const items = dataLines.map((line) => {
+            if (line.includes(",") || line.includes("\t")) {
+              const parts = line
+                .split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
+                .map((p) => p.replace(/^"|"$/g, "").trim());
+              if (parts.length >= 2) {
+                return { location: parts[0] || "CSV File", text: parts[1] || parts[0] };
+              }
+            }
+            return { text: line, location: "Uploaded File" };
+          });
+          setParsedFileRows(items.filter((i) => i.text.trim()));
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Download Sample CSV Template
+  const downloadSampleCSV = () => {
+    const csvContent =
+      "location,incident_description\n" +
+      "Drilling Rig 3,\"Worker bypassed hydraulic tongs safety interlock during casing operation.\"\n" +
+      "Tank Farm A,\"Technician entered confined manifold cellar without testing oxygen or H2S levels.\"\n" +
+      "Pipeline Section 7,\"Scaffold planks untied at 14 meters height shifted during high wind.\"\n" +
+      "Processing Unit 4,\"High pressure gas regulator 120 PSI above set point with obstructed relief vent.\"\n" +
+      "Substation C,\"Opened 415V distribution panel with live busbars while standing on wet grating.\"\n" +
+      "Warehouse Area,\"Routine quarterly office ergonomic evaluation completed.\"\n";
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "sample_oil_safety_logs.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleParseAndUploadText = () => {
@@ -818,7 +907,7 @@ export default function Dashboard() {
       </main>
 
       {/* =========================================================================
-          MODAL 1: 📂 BULK INGESTION STUDIO MODAL
+          MODAL 1: 📂 BULK INGESTION STUDIO MODAL (CSV, JSON, TXT & 1-CLICK DEMO)
           ========================================================================= */}
       {showBulkModal && (
         <div className="fixed inset-0 bg-[#1C1917]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
@@ -830,109 +919,226 @@ export default function Dashboard() {
               <X className="h-6 w-6" />
             </button>
 
+            {/* Header */}
             <div className="flex items-center gap-2 border-b-2 border-[#1C1917] pb-3 mb-6">
               <UploadCloud className="h-6 w-6 text-[#FF4500]" />
               <div>
                 <h2 className="font-display text-2xl uppercase text-[#1C1917]">
-                  Bulk Report Ingestion Engine
+                  Bulk Report Ingestion Studio
                 </h2>
                 <p className="text-xs font-medium text-[#1C1917]/60">
-                  Screen existing historical logs through Groq AI and update SIF precursor matrices.
+                  Fast parallel AI screening for historical logs (CSV, JSON, multi-line logs).
                 </p>
               </div>
             </div>
 
-            {/* Quick 1-Click OIL Historical Demo Batch */}
-            <div className="mb-6 p-4 bg-[#F59E0B]/15 border-2 border-[#F59E0B]">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-black uppercase text-[#1C1917] flex items-center gap-1.5">
-                    <Sparkles className="h-4 w-4 text-[#F59E0B]" />
-                    1-Click OIL India Historical Batch
+            {/* Ingestion Mode Tabs */}
+            <div className="flex border-2 border-[#1C1917] mb-6 bg-[#1C1917]/5">
+              <button
+                onClick={() => setBulkTab("file")}
+                className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 ${
+                  bulkTab === "file"
+                    ? "bg-[#1C1917] text-[#E4E2DD]"
+                    : "text-[#1C1917] hover:bg-[#1C1917]/10"
+                }`}
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" /> Upload File (CSV / JSON)
+              </button>
+              <button
+                onClick={() => setBulkTab("demo")}
+                className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 ${
+                  bulkTab === "demo"
+                    ? "bg-[#1C1917] text-[#E4E2DD]"
+                    : "text-[#1C1917] hover:bg-[#1C1917]/10"
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-[#F59E0B]" /> 1-Click OIL Batch
+              </button>
+              <button
+                onClick={() => setBulkTab("paste")}
+                className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 ${
+                  bulkTab === "paste"
+                    ? "bg-[#1C1917] text-[#E4E2DD]"
+                    : "text-[#1C1917] hover:bg-[#1C1917]/10"
+                }`}
+              >
+                <FileText className="h-3.5 w-3.5" /> Paste Text
+              </button>
+            </div>
+
+            {/* TAB 1: CSV / JSON FILE DROPZONE */}
+            {bulkTab === "file" && (
+              <div className="space-y-4">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".csv,.json,.txt"
+                  className="hidden"
+                />
+
+                {/* Dropzone */}
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-[#1C1917]/40 hover:border-[#FF4500] bg-[#1C1917]/5 p-8 text-center cursor-pointer transition-colors"
+                >
+                  <UploadCloud className="h-10 w-10 text-[#FF4500] mx-auto mb-2" />
+                  <p className="text-xs font-black uppercase tracking-wider text-[#1C1917]">
+                    Click to browse or Drag & Drop CSV / JSON / TXT
                   </p>
-                  <p className="text-[11px] text-[#1C1917]/70 mt-0.5">
-                    Test batch-screening across 10 realistic past reports (Hinglish/English, High & Low SIF).
+                  <p className="text-[11px] text-[#1C1917]/60 mt-1">
+                    Supports spreadsheets with columns: <code>location, incident_description</code>
                   </p>
                 </div>
+
+                {/* Template Download Utility */}
+                <div className="flex justify-between items-center bg-[#E4E2DD] border border-[#1C1917]/20 p-3 text-xs">
+                  <span className="font-bold text-[#1C1917]/70">Need a format template?</span>
+                  <button
+                    onClick={downloadSampleCSV}
+                    className="text-[11px] font-black uppercase tracking-wider text-[#FF4500] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Download Sample CSV
+                  </button>
+                </div>
+
+                {/* Parsed File Preview */}
+                {parsedFileRows.length > 0 && (
+                  <div className="p-4 bg-[#1C1917] text-[#E4E2DD] border-2 border-[#1C1917] text-xs space-y-2">
+                    <div className="flex justify-between items-center text-[#F59E0B] font-black uppercase">
+                      <span>File: {uploadedFileName}</span>
+                      <span>{parsedFileRows.length} Reports Found</span>
+                    </div>
+                    <div className="max-h-28 overflow-y-auto space-y-1 text-[11px] text-[#E4E2DD]/80 font-mono bg-[#1C1917]/50 p-2 border border-[#E4E2DD]/20">
+                      {parsedFileRows.slice(0, 3).map((r, i) => (
+                        <div key={i} className="truncate">
+                          • [{r.location || "Site A"}] "{r.text}"
+                        </div>
+                      ))}
+                      {parsedFileRows.length > 3 && (
+                        <div className="text-[10px] text-[#F59E0B]">
+                          ... and {parsedFileRows.length - 3} more reports ready for screening
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleRunBulkUpload(parsedFileRows)}
+                      disabled={bulkProcessing}
+                      className="w-full btn-slide bg-[#FF4500] text-[#1C1917] py-2.5 text-xs font-black uppercase tracking-widest border-2 border-[#1C1917] cursor-pointer mt-2 disabled:opacity-40"
+                    >
+                      <span>⚡ Run Parallel AI Screening ({parsedFileRows.length} Reports)</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: 1-CLICK DEMO BATCH */}
+            {bulkTab === "demo" && (
+              <div className="p-5 bg-[#F59E0B]/15 border-2 border-[#F59E0B] space-y-4">
+                <div>
+                  <h3 className="text-sm font-black uppercase text-[#1C1917] flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-[#F59E0B]" />
+                    1-Click OIL India Historical Incident Batch
+                  </h3>
+                  <p className="text-xs text-[#1C1917]/80 mt-1 leading-relaxed">
+                    Instantly load 10 realistic past incident scenarios across drilling rigs, tank farms, high-pressure lines, and electrical substations (in English & Hinglish) to demonstrate sub-2-second parallel AI screening.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-[#1C1917]/70 bg-[#E4E2DD] p-3 border border-[#1C1917]/20">
+                  <div>• 3x High-SIF Fall & Confined Hazards</div>
+                  <div>• 2x Gas Line Pressure Precursors</div>
+                  <div>• 2x Electrical Arc-Flash Scenarios</div>
+                  <div>• 3x Low-SIF Administrative Logs</div>
+                </div>
+
                 <button
                   onClick={handleLoadSampleBatch}
                   disabled={bulkProcessing}
-                  className="px-4 py-2 bg-[#1C1917] hover:bg-[#FF4500] hover:text-[#1C1917] text-[#E4E2DD] text-xs font-black uppercase tracking-wider border-2 border-[#1C1917] cursor-pointer transition-colors disabled:opacity-40 flex-shrink-0"
+                  className="w-full py-3 bg-[#1C1917] hover:bg-[#FF4500] hover:text-[#1C1917] text-[#E4E2DD] text-xs font-black uppercase tracking-widest border-2 border-[#1C1917] cursor-pointer transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
                 >
-                  {bulkProcessing ? "Screening…" : "Load Batch (10 Logs) ⚡"}
+                  <Zap className="h-4 w-4 text-[#F59E0B]" />
+                  <span>{bulkProcessing ? "Screening Parallel Batch…" : "Run Batch Screening (10 Reports in ~2s) ⚡"}</span>
                 </button>
               </div>
-            </div>
+            )}
 
-            {/* Manual Multi-line Paste Ingestion */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-[#1C1917]/60 mb-1">
-                  Or Paste Multi-line Logs (1 report per line):
-                </label>
-                <textarea
-                  value={bulkText}
-                  onChange={(e) => setBulkText(e.target.value)}
-                  placeholder={`Worker ne bina harness crane ke neeche kaam kiya...\nGas valve pressure gauge showing 150 PSI over limit in pump cellar...\nOffice ergonomic chair wheel broken near desk...`}
-                  rows={6}
-                  className="w-full p-3 bg-[#1C1917]/5 border-2 border-[#1C1917]/25 text-xs font-medium text-[#1C1917] resize-none focus:border-[#FF4500] focus:outline-none"
-                />
-              </div>
-
-              {/* Progress Indicator */}
-              {bulkProcessing && (
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-[11px] font-black uppercase text-[#1C1917]">
-                    <span>Screening Batch with Groq AI Brain…</span>
-                    <span>{bulkProgress}%</span>
-                  </div>
-                  <div className="w-full bg-[#1C1917]/10 h-3 border border-[#1C1917]/30 overflow-hidden">
-                    <div
-                      className="bg-[#FF4500] h-full transition-all duration-300"
-                      style={{ width: `${bulkProgress}%` }}
-                    />
-                  </div>
+            {/* TAB 3: MULTI-LINE PASTE */}
+            {bulkTab === "paste" && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-[#1C1917]/60 mb-1">
+                    Paste Safety Logs (1 report per line):
+                  </label>
+                  <textarea
+                    value={bulkText}
+                    onChange={(e) => setBulkText(e.target.value)}
+                    placeholder={`Worker ne bina harness crane ke neeche kaam kiya...\nGas valve pressure gauge showing 150 PSI over limit in pump cellar...\nOffice ergonomic chair wheel broken near desk...`}
+                    rows={6}
+                    className="w-full p-3 bg-[#1C1917]/5 border-2 border-[#1C1917]/25 text-xs font-medium text-[#1C1917] resize-none focus:border-[#FF4500] focus:outline-none"
+                  />
                 </div>
-              )}
 
-              {/* Results Summary Box */}
-              {bulkResult && (
-                <div className="p-4 bg-[#1C1917] text-[#E4E2DD] border-2 border-[#F59E0B] text-xs space-y-2">
-                  <p className="font-black uppercase text-[#F59E0B] flex items-center gap-1.5">
-                    <CheckCircle2 className="h-4 w-4" /> Batch Screening Complete!
-                  </p>
-                  <div className="grid grid-cols-3 gap-2 pt-1 text-center">
-                    <div className="p-2 bg-[#E4E2DD]/10 border border-[#E4E2DD]/20">
-                      <span className="block text-lg font-black">{bulkResult.total_processed}</span>
-                      <span className="text-[9px] uppercase tracking-wider text-[#E4E2DD]/60">Screened</span>
-                    </div>
-                    <div className="p-2 bg-[#FF4500]/20 border border-[#FF4500]">
-                      <span className="block text-lg font-black text-[#FF4500]">{bulkResult.high_sif_count}</span>
-                      <span className="text-[9px] uppercase tracking-wider text-[#FF4500]">High SIF Precursors</span>
-                    </div>
-                    <div className="p-2 bg-[#E4E2DD]/10 border border-[#E4E2DD]/20">
-                      <span className="block text-lg font-black text-[#F59E0B]">{bulkResult.emergencies_count}</span>
-                      <span className="text-[9px] uppercase tracking-wider text-[#F59E0B]">Auto-Escalated</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-2">
                 <button
                   onClick={handleParseAndUploadText}
                   disabled={bulkProcessing || !bulkText.trim()}
-                  className="flex-1 btn-slide bg-[#1C1917] text-[#E4E2DD] py-3 text-xs font-black uppercase tracking-widest border-2 border-[#1C1917] cursor-pointer disabled:opacity-40"
+                  className="w-full btn-slide bg-[#1C1917] text-[#E4E2DD] py-3 text-xs font-black uppercase tracking-widest border-2 border-[#1C1917] cursor-pointer disabled:opacity-40"
                 >
-                  <span>Start Batch AI Triage →</span>
-                </button>
-                <button
-                  onClick={() => setShowBulkModal(false)}
-                  className="px-5 py-3 bg-transparent border-2 border-[#1C1917]/30 text-[#1C1917] text-xs font-black uppercase tracking-widest hover:bg-[#1C1917]/10 cursor-pointer"
-                >
-                  Close
+                  <span>Start Parallel Batch AI Triage →</span>
                 </button>
               </div>
+            )}
+
+            {/* Progress Indicator */}
+            {bulkProcessing && (
+              <div className="mt-4 space-y-1.5">
+                <div className="flex justify-between text-[11px] font-black uppercase text-[#1C1917]">
+                  <span className="flex items-center gap-1.5">
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin text-[#FF4500]" />
+                    Processing Parallel Groq AI Threads…
+                  </span>
+                  <span>{bulkProgress}%</span>
+                </div>
+                <div className="w-full bg-[#1C1917]/10 h-3 border border-[#1C1917]/30 overflow-hidden">
+                  <div
+                    className="bg-[#FF4500] h-full transition-all duration-300"
+                    style={{ width: `${bulkProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Results Summary Box */}
+            {bulkResult && (
+              <div className="mt-4 p-4 bg-[#1C1917] text-[#E4E2DD] border-2 border-[#F59E0B] text-xs space-y-2 animate-in fade-in">
+                <p className="font-black uppercase text-[#F59E0B] flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4" /> Batch Screening Complete!
+                </p>
+                <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+                  <div className="p-2 bg-[#E4E2DD]/10 border border-[#E4E2DD]/20">
+                    <span className="block text-lg font-black">{bulkResult.total_processed}</span>
+                    <span className="text-[9px] uppercase tracking-wider text-[#E4E2DD]/60">Screened</span>
+                  </div>
+                  <div className="p-2 bg-[#FF4500]/20 border border-[#FF4500]">
+                    <span className="block text-lg font-black text-[#FF4500]">{bulkResult.high_sif_count}</span>
+                    <span className="text-[9px] uppercase tracking-wider text-[#FF4500]">High SIF Precursors</span>
+                  </div>
+                  <div className="p-2 bg-[#E4E2DD]/10 border border-[#E4E2DD]/20">
+                    <span className="block text-lg font-black text-[#F59E0B]">{bulkResult.emergencies_count}</span>
+                    <span className="text-[9px] uppercase tracking-wider text-[#F59E0B]">Auto-Escalated</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowBulkModal(false)}
+                className="px-5 py-2.5 bg-transparent border-2 border-[#1C1917]/30 text-[#1C1917] text-xs font-black uppercase tracking-widest hover:bg-[#1C1917]/10 cursor-pointer"
+              >
+                Close Studio
+              </button>
             </div>
           </div>
         </div>
