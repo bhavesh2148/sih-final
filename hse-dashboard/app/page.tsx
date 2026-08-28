@@ -1,380 +1,256 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { AlertTriangle, ShieldCheck, Activity, MapPin, Clock, ChevronRight, X, Link as LinkIcon, AlertCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowUpRight, ShieldCheck, HardHat, AlertTriangle, Radio } from "lucide-react";
 
-// Types matching our FastAPI backend
-interface CausalChain {
-  hazard: string;
-  barrier_failure: string;
-  consequence: string;
-}
-
-interface Twin {
-  twin_id: string;
-  raw_text: string;
-  sif_score: number;
-  iogp_rules: string[];
-  status: string;
-  similarity_score: number;
-}
-
-interface Report {
-  id: string;
-  timestamp: string;
-  raw_text: string;
-  is_emergency: boolean;
-  sif_score: number;
-  energy_type: string;
-  energy_level: number;
-  barrier_status: string;
-  barrier_level: number;
-  causal_chain: CausalChain;
-  iogp_rules: string[];
-  explanation: string;
-  status: string;
-}
-
-interface DashboardData {
-  total_reports: number;
-  high_sif_count: number;
-  precursor_alert: boolean;
-  reports: Report[];
-}
-
-export default function Dashboard() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-  const [twins, setTwins] = useState<Twin[]>([]);
-  const [loadingTwins, setLoadingTwins] = useState(false);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // Fetch twins whenever a report is selected
-  useEffect(() => {
-    if (selectedReport) {
-      fetchTwins(selectedReport.id);
-    }
-  }, [selectedReport]);
-
-const fetchData = async () => {
-  try {
-    // Adding ?t= forces the browser to ignore cache and get fresh data
-    const res = await fetch(`http://127.0.0.1:8000/api/v1/reports/dashboard?t=${Date.now()}`);
-    const json = await res.json();
-    console.log("✅ Dashboard data fetched:", json.total_reports, "reports"); // DEBUG LOG
-    setData(json);
-  } catch (error) {
-    console.error("Failed to fetch dashboard data:", error);
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const fetchTwins = async (reportId: string) => {
-    setLoadingTwins(true);
-    try {
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/reports/${reportId}/twins`);
-      const json = await res.json();
-      // Filter out the exact same report (100% match to itself) for cleaner demo
-      const filteredTwins = json.twins.filter((t: Twin) => t.twin_id !== reportId);
-      setTwins(filteredTwins);
-    } catch (error) {
-      console.error("Failed to fetch twins:", error);
-      setTwins([]);
-    } finally {
-      setLoadingTwins(false);
-    }
-  };
-
-  const getSifColor = (score: number) => {
-    if (score >= 0.6) return "bg-red-100 text-red-800 border-red-200";
-    if (score >= 0.3) return "bg-yellow-100 text-yellow-800 border-yellow-200";
-    return "bg-green-100 text-green-800 border-green-200";
-  };
-
-  const getSimilarityColor = (score: number) => {
-    if (score >= 80) return "bg-red-100 text-red-700 border-red-200";
-    if (score >= 50) return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    return "bg-gray-100 text-gray-700 border-gray-200";
-  };
-  const handleFeedback = async (reportId: string, feedback: "Confirm" | "Reject") => {
-  try {
-    await fetch(`http://127.0.0.1:8000/api/v1/reports/${reportId}/feedback`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(feedback),
-    });
-    
-    // Show success message
-    alert(`Report ${feedback.toLowerCase()}ed successfully! Added to training data.`);
-    
-    // Close modal and refresh data
-    setSelectedReport(null);
-    fetchData();
-  } catch (error) {
-    alert("Failed to submit feedback. Please try again.");
-  }
-};
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+export default function LandingPage() {
+  const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <ShieldCheck className="h-8 w-8 text-blue-600" />
-              SIFense <span className="text-gray-400 font-normal">| OIL India HSE Dashboard</span>
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">AI-Powered PSIF Precursor Detection & Triage</p>
+    <div className="min-h-screen bg-[#E4E2DD] text-[#1C1917] font-sans overflow-x-hidden relative selection:bg-[#FF4500] selection:text-white">
+      
+      {/* Custom Styles for Animations */}
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; }
+        
+        .font-display {
+          font-family: 'Inter', sans-serif;
+          font-weight: 900;
+          letter-spacing: -0.05em;
+          line-height: 0.75;
+        }
+
+        .animate-blob-1 { animation: pulse-blob 12s infinite ease-in-out; }
+        .animate-blob-2 { animation: pulse-blob 15s infinite ease-in-out reverse; }
+        
+        @keyframes pulse-blob {
+          0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.6; }
+          50% { transform: translate(20px, -30px) scale(1.1); opacity: 0.9; }
+        }
+
+        .slide-up {
+          animation: slide-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          opacity: 0;
+          transform: translateY(40px);
+        }
+        
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .delay-300 { animation-delay: 0.3s; }
+        .delay-400 { animation-delay: 0.4s; }
+
+        @keyframes slide-up {
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .btn-slide {
+          position: relative;
+          overflow: hidden;
+          transition: color 0.3s ease-out;
+        }
+        .btn-slide::before {
+          content: '';
+          position: absolute;
+          top: 0; left: 0; width: 100%; height: 100%;
+          background: #FFFFFF;
+          transform: translateX(-101%);
+          transition: transform 0.3s ease-out;
+          z-index: 0;
+        }
+        .btn-slide:hover::before { transform: translateX(0); }
+        .btn-slide:hover { color: #FF4500; }
+        .btn-slide span { position: relative; z-index: 1; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #E4E2DD; }
+        ::-webkit-scrollbar-thumb { background: #FF4500; }
+      `}</style>
+
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 w-full z-50 px-6 py-4 flex justify-between items-center bg-[#E4E2DD]/80 backdrop-blur-md border-b border-[#1C1917]/10">
+        <div className="font-black text-xl uppercase tracking-tighter cursor-pointer" onClick={() => router.push("/")}>
+          SIFense<span className="text-[#FF4500]">.</span>
+        </div>
+        <div className="hidden md:flex gap-8 text-xs font-bold uppercase tracking-[0.15em]">
+          <button onClick={() => router.push("/dashboard")} className="hover:text-[#FF4500] transition-colors cursor-pointer">Protocols</button>
+          <button onClick={() => router.push("/dashboard")} className="hover:text-[#FF4500] transition-colors cursor-pointer">Analytics</button>
+          <button onClick={() => router.push("/worker")} className="hover:text-[#FF4500] transition-colors cursor-pointer">System Status</button>
+        </div>
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bg-[#1C1917] text-[#E4E2DD] px-3 py-1.5">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#F59E0B] opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#F59E0B]"></span>
+          </span>
+          Live
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <header className="relative min-h-screen flex flex-col justify-center px-6 md:px-12 pt-20 overflow-hidden">
+        {/* Animated Blobs */}
+        <div className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] bg-[#FF4500] rounded-full filter blur-[140px] mix-blend-multiply animate-blob-1 pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-[#F59E0B] rounded-full filter blur-[140px] mix-blend-multiply animate-blob-2 pointer-events-none"></div>
+
+        <div className="relative z-10 max-w-7xl mx-auto w-full">
+          <div className="slide-up flex items-center gap-3 mb-8">
+            <AlertTriangle className="h-5 w-5 text-[#FF4500]" />
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#1C1917]">AI-Powered PSIF Precursor Detection</span>
           </div>
-          <button 
-            onClick={fetchData}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-          >
-            Refresh Data
-          </button>
+          
+<h1 className="font-display text-[10vw] md:text-[7vw] uppercase text-[#FFF0EB] slide-up delay-100">
+  Detect<br />
+  <span className="ml-[8vw] text-[#330E00]">Risks.</span>
+</h1>
+<h1 className="font-display text-[10vw] md:text-[7vw] uppercase text-[#FFF0EB] slide-up delay-200 mt-2">
+  Prevent<br />
+  <span className="ml-[8vw] text-[#330E00]">Fatalities.</span>
+</h1>
+
+          <div className="mt-12 flex flex-col md:flex-row md:items-end justify-between gap-8 slide-up delay-300">
+            <p className="max-w-md text-lg md:text-xl font-medium text-[#1C1917]/80 leading-relaxed">
+              Shifting from reactive accident counting to proactive, predictive safety management for OIL India.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button 
+                onClick={() => router.push("/dashboard")}
+                className="btn-slide bg-[#1C1917] text-[#E4E2DD] px-8 py-4 text-sm font-bold uppercase tracking-widest border-none cursor-pointer flex items-center gap-2"
+              >
+                <span>HSE Dashboard <ArrowUpRight className="h-4 w-4" /></span>
+              </button>
+              <button 
+                onClick={() => router.push("/worker")}
+                className="btn-slide bg-transparent text-[#1C1917] border-2 border-[#1C1917] px-8 py-4 text-sm font-bold uppercase tracking-widest cursor-pointer flex items-center gap-2 hover:border-[#FF4500]"
+              >
+                <span>Worker App <HardHat className="h-4 w-4" /></span>
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Precursor Alert Banner */}
-        {data?.precursor_alert && (
-          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg flex items-start gap-3">
-            <AlertTriangle className="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="text-red-800 font-bold">Precursor Escalation Alert</h3>
-              <p className="text-red-700 text-sm mt-1">
-                High-potential SIF incidents are trending upward. Immediate HSE review recommended.
+      {/* Category Divider / Campaign Block */}
+      <section className="relative py-32 px-6 md:px-12 bg-[#D9D6D0]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.15)_0%,transparent_70%)] pointer-events-none"></div>
+        
+        <div className="max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-12 relative z-10">
+          <div className="md:col-span-8">
+            <h2 className="font-display text-[12vw] md:text-[8vw] uppercase text-[#1C1917]/90">
+              Two Paths.<br />
+              <span className="text-[#FF4500]">Zero Compromise.</span>
+            </h2>
+          </div>
+          
+          <div className="md:col-span-4 flex flex-col justify-end gap-6">
+            <div className="border-t-2 border-[#1C1917]/20 pt-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Radio className="h-4 w-4 text-[#FF4500]" />
+                <span className="text-xs font-bold uppercase tracking-widest">Emergency Protocol</span>
+              </div>
+              <p className="text-sm font-medium text-[#1C1917]/70 mb-4">
+                Bypasses AI inference. Instant supervisor alert for active, life-threatening dangers.
               </p>
-            </div>
-          </div>
-        )}
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total Reports Analyzed</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{data?.total_reports || 0}</p>
-              </div>
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <Activity className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">High SIF Potential (≥0.6)</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">{data?.high_sif_count || 0}</p>
-              </div>
-              <div className="p-3 bg-red-50 rounded-lg">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">System Status</p>
-                <p className="text-lg font-bold text-green-600 mt-2 flex items-center gap-2">
-                  <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                  </span>
-                  Online & Processing
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Triage Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-900">Priority Triage Queue</h2>
-            <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">Sorted by SIF Score (Highest First)</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SIF Score</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Incident Report</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Energy / Barrier</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IOGP Rules</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {data?.reports.slice(0, 20).map((report) => (
-                  <tr key={report.id} className="hover:bg-gray-50 transition">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full border ${getSifColor(report.sif_score)}`}>
-                        {(report.sif_score * 100).toFixed(0)}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 font-medium line-clamp-2 max-w-md">{report.raw_text}</div>
-                      <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                        <MapPin className="h-3 w-3" /> {report.timestamp.split("T")[0]}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{report.energy_type}</div>
-                      <div className="text-xs text-gray-500">Barrier: {report.barrier_status}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {report.iogp_rules.map((rule, idx) => (
-                          <span key={idx} className="px-2 py-0.5 text-xs font-medium bg-indigo-50 text-indigo-700 rounded border border-indigo-100">
-                            {rule}
-                          </span>
-                        ))}
-                        {report.iogp_rules.length === 0 && <span className="text-xs text-gray-400">None</span>}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button 
-                        onClick={() => setSelectedReport(report)}
-                        className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
-                      >
-                        Review <ChevronRight className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </main>
-
-      {/* Detail Modal with Historical Twins */}
-      {selectedReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-start sticky top-0 bg-white z-10">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Incident Analysis Details</h2>
-                <p className="text-sm text-gray-500 mt-1">ID: {selectedReport.id}</p>
-              </div>
-              <button onClick={() => setSelectedReport(null)} className="text-gray-400 hover:text-gray-600">
-                <X className="h-6 w-6" />
+              <button onClick={() => router.push("/worker")} className="text-xs font-bold uppercase tracking-widest text-[#FF4500] flex items-center gap-1 hover:gap-2 transition-all cursor-pointer">
+                Launch SOS <ArrowUpRight className="h-3 w-3" />
               </button>
             </div>
             
-            <div className="p-6 space-y-6">
-              {/* Raw Text */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Original Report</h3>
-                <p className="text-gray-900 bg-gray-50 p-4 rounded-lg border border-gray-200 italic">"{selectedReport.raw_text}"</p>
+            <div className="border-t-2 border-[#1C1917]/20 pt-6">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldCheck className="h-4 w-4 text-[#F59E0B]" />
+                <span className="text-xs font-bold uppercase tracking-widest">Predictive Analysis</span>
               </div>
-
-              {/* AI Explanation */}
-              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4" /> AI Reasoning
-                </h3>
-                <p className="text-blue-900 text-sm">{selectedReport.explanation}</p>
-              </div>
-
-              {/* Causal Chain */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Causal Chain (Bowtie Analysis)</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-red-50 border border-red-100 rounded-lg p-3">
-                    <div className="text-xs font-bold text-red-600 mb-1">HAZARD</div>
-                    <div className="text-sm text-gray-800">{selectedReport.causal_chain.hazard}</div>
-                  </div>
-                  <div className="bg-yellow-50 border border-yellow-100 rounded-lg p-3">
-                    <div className="text-xs font-bold text-yellow-600 mb-1">BARRIER FAILURE</div>
-                    <div className="text-sm text-gray-800">{selectedReport.causal_chain.barrier_failure}</div>
-                  </div>
-                  <div className="bg-orange-50 border border-orange-100 rounded-lg p-3">
-                    <div className="text-xs font-bold text-orange-600 mb-1">CONSEQUENCE</div>
-                    <div className="text-sm text-gray-800">{selectedReport.causal_chain.consequence}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* ⭐ HISTORICAL TWINS SECTION (NEW!) */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <LinkIcon className="h-4 w-4 text-purple-600" /> Historical Twin Incidents
-                </h3>
-                
-                {loadingTwins ? (
-                  <div className="flex items-center justify-center p-6 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
-                    <span className="ml-2 text-sm text-gray-600">Finding semantic matches...</span>
-                  </div>
-                ) : twins.length > 0 ? (
-                  <div className="space-y-3">
-                    {twins.map((twin, idx) => (
-                      <div key={twin.twin_id} className="bg-purple-50 border border-purple-100 rounded-lg p-4 hover:bg-purple-100 transition">
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-xs font-bold text-purple-700 uppercase">Past Incident #{idx + 1}</span>
-                          <span className={`px-2 py-0.5 text-xs font-bold rounded-full border ${getSimilarityColor(twin.similarity_score)}`}>
-                            {twin.similarity_score}% Semantic Match
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-800 italic mb-2">"{twin.raw_text}"</p>
-                        <div className="flex items-center gap-3 text-xs">
-                          <span className={`px-2 py-0.5 rounded ${getSifColor(twin.sif_score)}`}>
-                            SIF: {(twin.sif_score * 100).toFixed(0)}%
-                          </span>
-                          <span className="text-gray-600">Status: {twin.status}</span>
-                          {twin.iogp_rules.length > 0 && (
-                            <span className="text-gray-600 flex items-center gap-1">
-                              <AlertCircle className="h-3 w-3" /> {twin.iogp_rules.join(", ")}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-500 text-center">
-                    No historical twins found for this incident pattern.
-                  </div>
-                )}
-              </div>
-
-              {/* Human in the Loop Actions */}
-                            {/* Human in the Loop Actions */}
-              <div className="flex gap-4 pt-4 border-t border-gray-200">
-                <button 
-                  onClick={() => handleFeedback(selectedReport.id, "Confirm")}
-                  className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2"
-                >
-                  <ShieldCheck className="h-5 w-5" /> Confirm SIF Potential
-                </button>
-                <button 
-                  onClick={() => handleFeedback(selectedReport.id, "Reject")}
-                  className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-300 transition flex items-center justify-center gap-2"
-                >
-                  <X className="h-5 w-5" /> Reject / False Positive
-                </button>
-              </div>
+              <p className="text-sm font-medium text-[#1C1917]/70 mb-4">
+                Semantic twin matching and causal chain extraction for near-miss reporting.
+              </p>
+              <button onClick={() => router.push("/dashboard")} className="text-xs font-bold uppercase tracking-widest text-[#1C1917] flex items-center gap-1 hover:gap-2 hover:text-[#FF4500] transition-all cursor-pointer">
+                View Analytics <ArrowUpRight className="h-3 w-3" />
+              </button>
             </div>
           </div>
         </div>
-      )}
+      </section>
+
+      {/* Feature Grid (Brutalist Cards) */}
+      <section className="py-32 px-6 md:px-12 bg-[#E4E2DD]">
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="flex items-end justify-between mb-16 border-b-2 border-[#1C1917] pb-4">
+            <h3 className="font-display text-4xl md:text-6xl uppercase">System Core</h3>
+            <span className="text-xs font-bold uppercase tracking-widest hidden md:block">v2.6.0 // OIL India</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-[1px] bg-[#1C1917] border-2 border-[#1C1917]">
+            {/* Card 1 */}
+            <div className="bg-[#E4E2DD] p-8 md:p-12 hover:bg-[#F59E0B] transition-colors duration-500 group cursor-pointer" onClick={() => router.push("/dashboard")}>
+              <div className="text-xs font-bold uppercase tracking-widest mb-8 text-[#1C1917]/50 group-hover:text-[#1C1917]">01 / Detection</div>
+              <h4 className="font-display text-3xl uppercase mb-4 text-[#1C1917]">Energy-Barrier<br />Scoring</h4>
+              <p className="text-sm font-medium text-[#1C1917]/70 group-hover:text-[#1C1917]">
+                Calculates SIF potential using the DEKRA framework. High energy + absent barrier = critical risk.
+              </p>
+            </div>
+            {/* Card 2 */}
+            <div className="bg-[#E4E2DD] p-8 md:p-12 hover:bg-[#FF4500] transition-colors duration-500 group cursor-pointer" onClick={() => router.push("/dashboard")}>
+              <div className="text-xs font-bold uppercase tracking-widest mb-8 text-[#1C1917]/50 group-hover:text-white">02 / Intelligence</div>
+              <h4 className="font-display text-3xl uppercase mb-4 text-[#1C1917]">Historical<br />Twins</h4>
+              <p className="text-sm font-medium text-[#1C1917]/70 group-hover:text-white">
+                SBERT semantic search finds past incidents that mean the same thing, not just share keywords.
+              </p>
+            </div>
+            {/* Card 3 */}
+            <div className="bg-[#E4E2DD] p-8 md:12 hover:bg-[#1C1917] transition-colors duration-500 group cursor-pointer" onClick={() => router.push("/worker")}>
+              <div className="text-xs font-bold uppercase tracking-widest mb-8 text-[#1C1917]/50 group-hover:text-[#F59E0B]">03 / Resilience</div>
+              <h4 className="font-display text-3xl uppercase mb-4 text-[#1C1917] group-hover:text-white">Offline-First<br />Queue</h4>
+              <p className="text-sm font-medium text-[#1C1917]/70 group-hover:text-[#E4E2DD]">
+                LocalStorage sync ensures zero data loss in remote, low-bandwidth oil field environments.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-[#1C1917] text-[#E4E2DD] py-20 px-6 md:px-12 relative overflow-hidden">
+        <div className="absolute bottom-0 right-0 font-display text-[25vw] text-white/[0.03] leading-none pointer-events-none select-none">
+          2026
+        </div>
+        
+        <div className="max-w-7xl mx-auto w-full relative z-10 grid grid-cols-1 md:grid-cols-4 gap-12">
+          <div className="md:col-span-2">
+            <div className="font-black text-4xl uppercase tracking-tighter mb-6 cursor-pointer" onClick={() => router.push("/")}>
+              SIFense<span className="text-[#FF4500]">.</span>
+            </div>
+            <p className="text-sm font-medium text-[#E4E2DD]/60 max-w-xs">
+              Built for the OIL India Safety & Environment Department. Protecting the workforce through predictive AI.
+            </p>
+          </div>
+          
+          <div>
+            <h5 className="text-xs font-bold uppercase tracking-widest text-[#F59E0B] mb-4">Platform</h5>
+            <ul className="space-y-2 text-sm font-medium text-[#E4E2DD]/80">
+              <li className="hover:text-white cursor-pointer" onClick={() => router.push("/dashboard")}>HSE Dashboard</li>
+              <li className="hover:text-white cursor-pointer" onClick={() => router.push("/worker")}>Worker App</li>
+              <li className="hover:text-white cursor-pointer">API Documentation</li>
+            </ul>
+          </div>
+          
+          <div>
+            <h5 className="text-xs font-bold uppercase tracking-widest text-[#F59E0B] mb-4">System</h5>
+            <ul className="space-y-2 text-sm font-medium text-[#E4E2DD]/80">
+              <li className="hover:text-white cursor-pointer">SBERT Model v1.2</li>
+              <li className="hover:text-white cursor-pointer">Fallback Logic</li>
+              <li className="hover:text-white cursor-pointer">Status: Online</li>
+            </ul>
+          </div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto w-full mt-20 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center text-xs font-medium text-[#E4E2DD]/40">
+          <p>© 2026 SIFense. All rights reserved.</p>
+          <p className="mt-2 md:mt-0">Designed with Safety & Precision.</p>
+        </div>
+      </footer>
     </div>
   );
 }

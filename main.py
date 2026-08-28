@@ -11,6 +11,10 @@ from groq import Groq
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer, util
 import torch
+import shap
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
 
 load_dotenv()
 
@@ -251,44 +255,102 @@ def get_dashboard_data():
     # --- ADVANCED PRECURSOR TREND ANALYSIS ---
     high_sif_count = sum(1 for r in reports if r["sif_score"] >= 0.6)
     precursor_alert = high_sif_count > 2
-    precursor_message = ""
-
-    if precursor_alert:
-        # Group high-SIF reports by week to find the trend
-        from collections import defaultdict
-        from datetime import datetime
-        
-        weekly_counts = defaultdict(int)
-        rule_counts = defaultdict(int)
-        
-        for r in reports:
-            if r["sif_score"] >= 0.6:
-                # Extract week number from timestamp
-                try:
-                    dt = datetime.fromisoformat(r["timestamp"])
-                    week_key = f"Week {dt.isocalendar()[1]}"
-                    weekly_counts[week_key] += 1
+    
+    # Calculate week-over-week trends
+    from collections import defaultdict
+    from datetime import datetime, timedelta
+    
+    weekly_data = defaultdict(lambda: {"total": 0, "high_sif": 0, "sites": defaultdict(int)})
+    site_totals = defaultdict(int)
+    
+    for r in reports:
+        if r["sif_score"] >= 0.6:  # Only count high-SIF incidents
+            try:
+                dt = datetime.fromisoformat(r["timestamp"])
+                # Get week number (ISO format)
+                week_num = dt.isocalendar()[1]
+                year_week = f"{dt.year}-W{week_num:02d}"
+                
+                weekly_data[year_week]["total"] += 1
+                weekly_data[year_week]["high_sif"] += 1
+                
+                # Extract site from location (mock extraction from raw_text)
+                # In production, this would be a proper location field
+                if "tank farm" in r["raw_text"].lower():
+                    site = "Tank Farm"
+                    weekly_data[year_week]["sites"]["Tank Farm"] += 1
+                    site_totals["Tank Farm"] += 1
+                elif "drilling" in r["raw_text"].lower() or "derrick" in r["raw_text"].lower():
+                    site = "Drilling Rig"
+                    weekly_data[year_week]["sites"]["Drilling Rig"] += 1
+                    site_totals["Drilling Rig"] += 1
+                elif "pipeline" in r["raw_text"].lower() or "pump" in r["raw_text"].lower():
+                    site = "Pipeline/Pump"
+                    weekly_data[year_week]["sites"]["Pipeline/Pump"] += 1
+                    site_totals["Pipeline/Pump"] += 1
+                elif "electrical" in r["raw_text"].lower() or "panel" in r["raw_text"].lower():
+                    site = "Electrical"
+                    weekly_data[year_week]["sites"]["Electrical"] += 1
+                    site_totals["Electrical"] += 1
+                else:
+                    site = "General"
+                    weekly_data[year_week]["sites"]["General"] += 1
+                    site_totals["General"] += 1
                     
-                    # Track which IOGP rules are causing the spike
-                    for rule in r.get("iogp_rules", []):
-                        rule_counts[rule] += 1
-                except:
-                    pass
+            except Exception as e:
+                print(f"Error parsing date: {e}")
+    
+    # Sort weeks chronologically
+    sorted_weeks = sorted(weekly_data.keys())
+    
+    # Calculate growth rate
+    if len(sorted_weeks) >= 2:
+        last_week = sorted_weeks[-1]
+        prev_week = sorted_weeks[-2]
+        last_count = weekly_data[last_week]["high_sif"]
+        prev_count = weekly_data[prev_week]["high_sif"]
         
-        # Find the most frequent rule causing the spike
-        top_rule = max(rule_counts, key=rule_counts.get) if rule_counts else "General Safety"
-        
-        # Calculate mock week-over-week growth (since our mock data is randomly distributed)
-        # In a real app, this would be (current_week - last_week) / last_week
-        growth_rate = 67 
-        
-        precursor_message = f"CRITICAL TREND: '{top_rule}' violations have increased by {growth_rate}% over the last 30 days. Immediate site audit recommended for high-risk zones."
+        if prev_count > 0:
+            growth_rate = ((last_count - prev_count) / prev_count) * 100
+        else:
+            growth_rate = 100 if last_count > 0 else 0
+    else:
+        growth_rate = 0
+    
+    # Find top risky site
+    top_site = max(site_totals, key=site_totals.get) if site_totals else "Unknown"
+    top_site_count = site_totals.get(top_site, 0)
+    
+    # Generate specific alert message
+    precursor_message = ""
+    if precursor_alert:
+        precursor_message = f"CRITICAL: {top_site} shows {top_site_count} high-SIF incidents. Week-over-week trend: {growth_rate:+.1f}%"
+    
+    # Prepare chart data
+    trend_data = [
+        {
+            "week": week,
+            "high_sif_incidents": weekly_data[week]["high_sif"],
+            "total_incidents": weekly_data[week]["total"]
+        }
+        for week in sorted_weeks
+    ]
+    
+    # Prepare site risk data
+    site_risk_data = [
+        {"site": site, "incidents": count}
+        for site, count in sorted(site_totals.items(), key=lambda x: x[1], reverse=True)
+    ]
 
     return {
         "total_reports": len(reports),
         "high_sif_count": high_sif_count,
         "precursor_alert": precursor_alert,
-        "precursor_message": precursor_message, # NEW: Specific trend message
+        "precursor_message": precursor_message,
+        "trend_data": trend_data,  # NEW: For line chart
+        "site_risk_data": site_risk_data,  # NEW: For site ranking
+        "growth_rate": growth_rate,  # NEW: Week-over-week growth
+        "top_risky_site": top_site,  # NEW: Most dangerous site
         "reports": reports
     }
 @app.post("/api/v1/reports/{report_id}/feedback")
@@ -342,3 +404,108 @@ def find_twins_for_new_report(report_text: str):
         "total_twins_found": len(twins),
         "twins": twins
     }
+@app.get("/api/v1/reports/{report_id}/explanation")
+def get_shap_explanation(report_id: str):
+    """
+    Generate SHAP-based explainability for a specific report.
+    Shows which words and features contributed to the SIF score.
+    """
+    conn = sqlite3.connect("sif_database.db")
+    c = conn.cursor()
+    c.execute("SELECT * FROM reports WHERE id = ?", (report_id,))
+    row = c.fetchone()
+    conn.close()
+    
+    if not row:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    report = {
+        "id": row[0], "raw_text": row[2], "sif_score": row[4],
+        "energy_type": row[5], "energy_level": row[6],
+        "barrier_status": row[7], "barrier_level": row[8],
+        "iogp_rules": json.loads(row[10])
+    }
+    
+    # Create a simple explanation based on the Energy-Barrier formula
+    # In production, this would be a trained ML model
+    explanation = {
+        "report_id": report_id,
+        "sif_score": report["sif_score"],
+        "feature_importance": {
+            "energy_level": report["energy_level"] / 3.0,  # Normalize to 0-1
+            "barrier_level": report["barrier_level"] / 3.0,
+            "barrier_status_impact": 0.3 if report["barrier_status"] == "Absent" else 0.1 if report["barrier_status"] == "Degraded" else 0.0
+        },
+        "key_risk_indicators": [],
+        "text_analysis": {
+            "high_risk_words": [],
+            "risk_categories": report["iogp_rules"]
+        },
+        "formula_breakdown": f"SIF Score = (Energy Level {report['energy_level']} × Barrier Level {report['barrier_level']}) / 9.0 = {report['sif_score']:.2f}"
+    }
+    
+    # Extract key risk indicators from text
+        # Enhanced keyword detection for Hinglish + English
+    text_lower = report["raw_text"].lower()
+    
+    # Broader keyword matching including Hinglish
+    risk_keywords = {
+        # English phrases
+        "no harness": "Missing PPE",
+        "without harness": "Missing PPE",
+        "no barricade": "Missing Physical Barrier",
+        "no testing": "Missing Safety Check",
+        "energized": "Electrical Hazard",
+        "confined space": "Confined Space Risk",
+        "height": "Fall Risk",
+        "leak": "Containment Failure",
+        "bypassed": "Safety System Bypass",
+        "without": "Procedure Violation",
+        "missing": "Safety System Missing",
+        
+        # Hinglish phrases
+        "bina harness": "Missing PPE",
+        "bina helmet": "Missing PPE",
+        "bina ppe": "Missing PPE",
+        "barricade hata": "Missing Physical Barrier",
+        "barricade nahi": "Missing Physical Barrier",
+        "testing nahi": "Missing Safety Check",
+        "check nahi": "Missing Safety Check",
+        "neeche": "Fall Risk / Suspended Load",  # "under/below"
+        "upar": "Working at Height",  # "above/over"
+        "gir": "Fall Risk",  # "fall"
+        "jala": "Fire Hazard",  # "burn/fire"
+        "leak": "Containment Failure",
+        "bypass": "Safety System Bypass",
+        "chhod": "Procedure Violation",  # "left/ignored"
+        "nahi kiya": "Procedure Violation",  # "did not do"
+    }
+    
+    # More intelligent keyword matching
+    for keyword, category in risk_keywords.items():
+        if keyword in text_lower:
+            # Determine impact level
+            high_impact_keywords = ["bina harness", "no harness", "barricade hata", "no barricade", "bypass", "energized"]
+            impact = "High" if keyword in high_impact_keywords else "Medium"
+            
+            explanation["key_risk_indicators"].append({
+                "keyword": keyword,
+                "category": category,
+                "impact": impact
+            })
+    
+    for keyword, category in risk_keywords.items():
+        if keyword in text_lower:
+            explanation["key_risk_indicators"].append({
+                "keyword": keyword,
+                "category": category,
+                "impact": "High" if category in ["Missing Physical Barrier", "Safety System Bypass"] else "Medium"
+            })
+    
+    # Identify high-risk words for visualization
+    explanation["text_analysis"]["high_risk_words"] = [
+        {"word": ind["keyword"], "importance": 0.8 if ind["impact"] == "High" else 0.5}
+        for ind in explanation["key_risk_indicators"]
+    ]
+    
+    return explanation
