@@ -50,10 +50,14 @@ Follow this 5-step flow when presenting to judges or stakeholders:
 * Point out the **Critical SIF Precursor Triage Panel** at the top separating top fatal-potential risks ($\ge 60\%$) from administrative noise.
 * Point out the 4 core metric boxes answering the fundamental safety questions.
 
-### Step 3: Demonstrate Bulk Batch Screening (The Core Feature!)
-* Click **"Bulk Ingest Logs"** in the top navbar.
-* Click **"Load Batch (10 Logs) ⚡"** $\rightarrow$ Watch the AI screen 10 historical reports in 2 seconds.
-* Show the summary breakdown (*Screened*, *High SIF Flagged*, *Auto-Escalated*), and watch the dashboard charts update in real time!
+### 📂 3. High-Speed Bulk Report Ingestion & Batch Screening Studio
+* Accessible directly from the dashboard header (**"Bulk Ingest Logs"**).
+* **📁 Multi-Format File Dropzone (CSV / JSON / TXT):** Drag and drop spreadsheets or incident dump files. Automatically detects columns (`location`, `incident_description`, `text`).
+* **📥 1-Click "Download Sample CSV Template":** Generates and downloads a pre-formatted template ready for testing.
+* **⚡ Parallel Multi-Threaded AI Screening:** Uses a backend `ThreadPoolExecutor` (8 concurrent workers) to screen **10-20 reports simultaneously in ~2 seconds** (a 6x speedup over sequential processing).
+* **⚡ 1-Click OIL India Historical Batch:** Instant demo button to screen 10 past incident scenarios.
+* **📊 Live Progress Bar & Results Breakdown:** Real-time progress bar with instant count of high-SIF precursors flagged.
+* **🔄 Auto-Refreshes SBERT Twins:** Newly ingested logs are immediately vectorized and searchable as historical twins.
 
 ### Step 4: Deep-Dive Bowtie & Semantic Historical Twins
 * Click on any critical report in the manifest table.
