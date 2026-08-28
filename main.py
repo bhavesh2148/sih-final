@@ -143,6 +143,13 @@ class ReportSubmission(BaseModel):
     is_voice: bool = False
     location: str = "Site A"
 
+class BulkReportItem(BaseModel):
+    text: str
+    location: Optional[str] = "Site A"
+
+class BulkReportSubmission(BaseModel):
+    reports: List[BulkReportItem]
+
 class SOSRequest(BaseModel):
     location: str
     worker_id: str
@@ -246,6 +253,70 @@ def submit_report(report: ReportSubmission):
         "explanation": ai_analysis["explanation"]
     }
 
+@app.post("/api/v1/reports/bulk-upload")
+def bulk_upload_reports(payload: BulkReportSubmission):
+    """
+    Ingests and batch-screens multiple historical safety logs collected by OIL India.
+    Runs AI analysis, saves to SQLite, and updates SBERT twin matching cache.
+    """
+    global report_embeddings_cache
+    results = []
+    high_sif_count = 0
+    emergencies_count = 0
+    
+    conn = sqlite3.connect("sif_database.db")
+    c = conn.cursor()
+    
+    for item in payload.reports:
+        text_clean = item.text.strip()
+        if not text_clean:
+            continue
+        report_id = str(uuid.uuid4())
+        ai_analysis = analyze_report_with_llm(text_clean)
+        
+        is_emerg = ai_analysis.get("is_emergency", False)
+        if is_emerg:
+            emergencies_count += 1
+            trigger_sos(SOSRequest(location=item.location or "Site A", worker_id="Batch-Upload"))
+            
+        sif_score = ai_analysis.get("sif_score", 0.0)
+        if sif_score >= 0.6:
+            high_sif_count += 1
+            
+        c.execute("""INSERT INTO reports VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
+            report_id, datetime.now().isoformat(), text_clean,
+            1 if is_emerg else 0, sif_score,
+            ai_analysis.get("energy_type", "Mechanical"), ai_analysis.get("energy_level", 1),
+            ai_analysis.get("barrier_status", "Degraded"), ai_analysis.get("barrier_level", 2),
+            json.dumps(ai_analysis.get("causal_chain", {})),
+            json.dumps(ai_analysis.get("iogp_rules", [])),
+            ai_analysis.get("explanation", ""), "Pending Review"
+        ))
+        
+        results.append({
+            "report_id": report_id,
+            "text": text_clean,
+            "sif_score": sif_score,
+            "is_emergency": is_emerg,
+            "energy_type": ai_analysis.get("energy_type", "Mechanical"),
+            "barrier_status": ai_analysis.get("barrier_status", "Degraded"),
+            "explanation": ai_analysis.get("explanation", "")
+        })
+        
+    conn.commit()
+    conn.close()
+    
+    # Invalidate SBERT embedding cache so new reports immediately participate in twin matching
+    report_embeddings_cache = {}
+    
+    return {
+        "status": "success",
+        "total_processed": len(results),
+        "high_sif_count": high_sif_count,
+        "emergencies_count": emergencies_count,
+        "results": results
+    }
+
 @app.get("/api/v1/reports/dashboard")
 def get_dashboard_data():
     """
@@ -270,7 +341,8 @@ def get_dashboard_data():
         })
     
     # --- ADVANCED PRECURSOR TREND ANALYSIS ---
-    high_sif_count = sum(1 for r in reports if r["sif_score"] >= 0.6)
+    critical_precursors = [r for r in reports if r["sif_score"] >= 0.6]
+    high_sif_count = len(critical_precursors)
     precursor_alert = high_sif_count > 2
     
     # Calculate week-over-week trends
@@ -279,9 +351,26 @@ def get_dashboard_data():
     
     weekly_data = defaultdict(lambda: {"total": 0, "high_sif": 0, "sites": defaultdict(int)})
     site_totals = defaultdict(int)
+    barrier_failures_map = defaultdict(int)
+    rules_map = defaultdict(int)
+    hazards_map = defaultdict(int)
     
     for r in reports:
         if r["sif_score"] >= 0.6:  # Only count high-SIF incidents
+            # Aggregate recurring barrier failures
+            bf = r["causal_chain"].get("barrier_failure", "")
+            if bf and bf != "None":
+                barrier_failures_map[bf] += 1
+                
+            # Aggregate top violated IOGP rules
+            for rule in r.get("iogp_rules", []):
+                rules_map[rule] += 1
+                
+            # Aggregate top hazards
+            hz = r["causal_chain"].get("hazard", "")
+            if hz and hz != "None":
+                hazards_map[hz] += 1
+
             try:
                 dt = datetime.fromisoformat(r["timestamp"])
                 # Get week number (ISO format)
@@ -292,7 +381,6 @@ def get_dashboard_data():
                 weekly_data[year_week]["high_sif"] += 1
                 
                 # Extract site from location (mock extraction from raw_text)
-                # In production, this would be a proper location field
                 if "tank farm" in r["raw_text"].lower():
                     site = "Tank Farm"
                     weekly_data[year_week]["sites"]["Tank Farm"] += 1
@@ -338,6 +426,24 @@ def get_dashboard_data():
     top_site = max(site_totals, key=site_totals.get) if site_totals else "Unknown"
     top_site_count = site_totals.get(top_site, 0)
     
+    # Top recurring barrier failures
+    top_recurring_barriers = [
+        {"barrier": k, "count": v}
+        for k, v in sorted(barrier_failures_map.items(), key=lambda x: x[1], reverse=True)[:4]
+    ]
+    
+    # Top violated rules
+    top_violated_rules = [
+        {"rule": k, "count": v}
+        for k, v in sorted(rules_map.items(), key=lambda x: x[1], reverse=True)[:4]
+    ]
+    
+    # Top recurring hazards
+    top_recurring_hazards = [
+        {"hazard": k, "count": v}
+        for k, v in sorted(hazards_map.items(), key=lambda x: x[1], reverse=True)[:4]
+    ]
+    
     # Generate specific alert message
     precursor_message = ""
     if precursor_alert:
@@ -362,12 +468,16 @@ def get_dashboard_data():
     return {
         "total_reports": len(reports),
         "high_sif_count": high_sif_count,
+        "critical_precursors": critical_precursors,  # NEW: Filtered critical SIF incidents
+        "top_recurring_barriers": top_recurring_barriers,  # NEW: Recurring barrier failures
+        "top_violated_rules": top_violated_rules,  # NEW: Top violated Life-Saving Rules
+        "top_recurring_hazards": top_recurring_hazards,  # NEW: Recurring hazards
         "precursor_alert": precursor_alert,
         "precursor_message": precursor_message,
-        "trend_data": trend_data,  # NEW: For line chart
-        "site_risk_data": site_risk_data,  # NEW: For site ranking
-        "growth_rate": growth_rate,  # NEW: Week-over-week growth
-        "top_risky_site": top_site,  # NEW: Most dangerous site
+        "trend_data": trend_data,
+        "site_risk_data": site_risk_data,
+        "growth_rate": growth_rate,
+        "top_risky_site": top_site,
         "reports": reports
     }
 @app.post("/api/v1/reports/{report_id}/feedback")
