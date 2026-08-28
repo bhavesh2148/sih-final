@@ -1,10 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, ShieldCheck, HardHat, AlertTriangle, Radio } from "lucide-react";
+import { useAuth } from "../lib/auth-context";
+import { ArrowUpRight, ShieldCheck, HardHat, AlertTriangle, Radio, Lock, User } from "lucide-react";
 
 export default function LandingPage() {
   const router = useRouter();
+  const { user } = useAuth();
 
   return (
     <div className="min-h-screen bg-[#E4E2DD] text-[#1C1917] font-sans overflow-x-hidden relative selection:bg-[#FF4500] selection:text-white">
@@ -16,10 +18,26 @@ export default function LandingPage() {
         <div className="font-black text-xl uppercase tracking-tighter cursor-pointer" onClick={() => router.push("/")}>
           SIFense<span className="text-[#FF4500]">.</span>
         </div>
-        <div className="hidden md:flex gap-8 text-xs font-bold uppercase tracking-[0.15em]">
-          <button onClick={() => router.push("/dashboard")} className="hover:text-[#FF4500] transition-colors cursor-pointer">Protocols</button>
-          <button onClick={() => router.push("/dashboard")} className="hover:text-[#FF4500] transition-colors cursor-pointer">Analytics</button>
-          <button onClick={() => router.push("/worker")} className="hover:text-[#FF4500] transition-colors cursor-pointer">System Status</button>
+        <div className="hidden md:flex gap-8 text-xs font-bold uppercase tracking-[0.15em] items-center">
+          <button onClick={() => router.push("/dashboard")} className="hover:text-[#FF4500] transition-colors cursor-pointer">Dashboard</button>
+          <button onClick={() => router.push("/worker")} className="hover:text-[#FF4500] transition-colors cursor-pointer">Worker App</button>
+          {user ? (
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="text-[#FF4500] font-black uppercase text-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <User className="h-3.5 w-3.5" />
+              <span>Officer Active</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => router.push("/login")}
+              className="hover:text-[#FF4500] text-[#1C1917] font-black uppercase text-xs flex items-center gap-1 cursor-pointer"
+            >
+              <Lock className="h-3 w-3" />
+              <span>Login</span>
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bg-[#1C1917] text-[#E4E2DD] px-3 py-1.5">
           <span className="relative flex h-2 w-2">

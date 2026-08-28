@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "../../lib/auth-context";
 import {
   AlertTriangle, ShieldCheck, Activity, Clock,
   X, Link as LinkIcon, AlertCircle, TrendingUp,
-  Building2, ArrowUpRight, HardHat, ChevronDown
+  Building2, ArrowUpRight, HardHat, ChevronDown,
+  LogOut, UserCheck
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -65,6 +67,7 @@ interface TrendPoint {
 
 export default function Dashboard() {
   const router = useRouter();
+  const { user, loading: authLoading, signOut } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +80,13 @@ export default function Dashboard() {
   const [topRiskySite, setTopRiskySite] = useState("");
   const [explanation, setExplanation] = useState<any>(null);
   const [sortBy, setSortBy] = useState<"risk" | "recent">("risk");
+
+  // Auth Protection Guard
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login");
+    }
+  }, [user, authLoading, router]);
 
   // Sorted reports — by SIF score (default) or by timestamp (recent first)
   const sortedReports = useMemo(() => {
@@ -94,8 +104,10 @@ export default function Dashboard() {
   }, [data?.reports, sortBy]);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (selectedReport) {
@@ -265,6 +277,12 @@ export default function Dashboard() {
           </button>
         </div>
         <div className="flex items-center gap-3">
+          {user && (
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-[#1C1917]/5 border border-[#1C1917]/20 text-[11px] font-bold">
+              <UserCheck className="h-3.5 w-3.5 text-[#FF4500]" />
+              <span className="truncate max-w-[150px]">{user.email}</span>
+            </div>
+          )}
           <button
             onClick={fetchData}
             className="text-xs font-bold uppercase tracking-widest text-[#1C1917] hover:text-[#FF4500] transition-colors cursor-pointer hidden md:block"
@@ -278,6 +296,16 @@ export default function Dashboard() {
             </span>
             Live
           </div>
+          <button
+            onClick={async () => {
+              await signOut();
+              router.push("/login");
+            }}
+            title="Sign Out"
+            className="p-1.5 border border-[#1C1917]/20 hover:bg-[#FF4500] hover:text-white transition-colors cursor-pointer text-[#1C1917]"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </nav>
 
