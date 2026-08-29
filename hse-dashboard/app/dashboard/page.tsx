@@ -782,15 +782,19 @@ export default function Dashboard() {
                         "{report.raw_text}"
                       </p>
 
-                      {/* Bowtie Hazard summary chip */}
-                      <div className="p-2 bg-[#1C1917]/5 border border-[#1C1917]/15 text-[10px] space-y-1 mb-3">
-                        <div className="flex items-center gap-1 font-bold text-[#1C1917]">
-                          <span className="text-[#FF4500] font-black">Hazard:</span>
+                      {/* Bowtie 3-Pillar summary chip */}
+                      <div className="p-2.5 bg-[#1C1917]/5 border border-[#1C1917]/15 text-[10px] space-y-1.5 mb-3">
+                        <div className="flex items-start gap-1.5 font-bold text-[#1C1917]">
+                          <span className="text-[#FF4500] font-black shrink-0">1. Hazard:</span>
                           <span className="truncate">{report.causal_chain?.hazard || "Unsafe condition"}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-[#1C1917]/70">
-                          <span className="font-bold text-[#F59E0B]">Barrier Failed:</span>
+                        <div className="flex items-start gap-1.5 text-[#1C1917]/80">
+                          <span className="font-bold text-[#F59E0B] shrink-0">2. Barrier Failed:</span>
                           <span className="truncate">{report.causal_chain?.barrier_failure || "Barrier degraded"}</span>
+                        </div>
+                        <div className="flex items-start gap-1.5 text-[#1C1917]">
+                          <span className="font-black text-rose-600 shrink-0">3. Consequence:</span>
+                          <span className="font-bold truncate text-rose-700">{report.causal_chain?.consequence || "Fatal outcome / major blowout"}</span>
                         </div>
                       </div>
                     </div>
@@ -994,9 +998,16 @@ export default function Dashboard() {
                     </td>
                     <td className="p-4 font-bold text-[#1C1917] max-w-md">
                       <p className="line-clamp-2">"{report.raw_text}"</p>
-                      <p className="text-[10px] font-medium text-[#1C1917]/40 mt-1">
-                        {new Date(report.timestamp).toLocaleString()}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                        <span className="text-[10px] font-medium text-[#1C1917]/40">
+                          {new Date(report.timestamp).toLocaleString()}
+                        </span>
+                        {report.causal_chain?.consequence && (
+                          <span className="text-[9px] font-black uppercase tracking-wider text-rose-700 bg-rose-100/70 border border-rose-300 px-1.5 py-0.5">
+                            ⚡ Potential: {report.causal_chain.consequence}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-4 hidden md:table-cell font-bold text-[#1C1917]/70">
                       {report.energy_type} (Lvl {report.energy_level})
