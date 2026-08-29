@@ -11,8 +11,6 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#E4E2DD] text-[#1C1917] font-sans overflow-x-hidden relative selection:bg-[#FF4500] selection:text-white">
       
-      {/* Styles now in globals.css */}
-
       {/* Navigation */}
       <nav className="fixed top-0 left-0 w-full z-50 px-6 py-4 flex justify-between items-center bg-[#E4E2DD]/80 backdrop-blur-md border-b border-[#1C1917]/10">
         <div className="font-black text-xl uppercase tracking-tighter cursor-pointer" onClick={() => router.push("/")}>
@@ -60,14 +58,14 @@ export default function LandingPage() {
             <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#1C1917]">AI-Powered PSIF Precursor Detection</span>
           </div>
           
-<h1 className="font-display text-[10vw] md:text-[7vw] uppercase text-[#FFF0EB] slide-up delay-100">
-  Detect<br />
-  <span className="ml-[8vw] text-[#330E00]">Risks.</span>
-</h1>
-<h1 className="font-display text-[10vw] md:text-[7vw] uppercase text-[#FFF0EB] slide-up delay-200 mt-2">
-  Prevent<br />
-  <span className="ml-[8vw] text-[#330E00]">Fatalities.</span>
-</h1>
+          <h1 className="font-display text-[10vw] md:text-[7vw] uppercase text-[#FFF0EB] slide-up delay-100">
+            Detect<br />
+            <span className="ml-[8vw] text-[#330E00]">Risks.</span>
+          </h1>
+          <h1 className="font-display text-[10vw] md:text-[7vw] uppercase text-[#FFF0EB] slide-up delay-200 mt-2">
+            Prevent<br />
+            <span className="ml-[8vw] text-[#330E00]">Fatalities.</span>
+          </h1>
 
           <div className="mt-12 flex flex-col md:flex-row md:items-end justify-between gap-8 slide-up delay-300">
             <p className="max-w-md text-lg md:text-xl font-medium text-[#1C1917]/80 leading-relaxed">
@@ -96,15 +94,15 @@ export default function LandingPage() {
       <section className="relative py-32 px-6 md:px-12 bg-[#D9D6D0]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.15)_0%,transparent_70%)] pointer-events-none"></div>
         
-        <div className="max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-12 relative z-10">
-          <div className="md:col-span-8">
-            <h2 className="font-display text-[12vw] md:text-[8vw] uppercase text-[#1C1917]/90">
+        <div className="max-w-7xl mx-auto w-full flex flex-col gap-12 relative z-10">
+          <div>
+            <h2 className="font-display text-[11vw] md:text-[6.5vw] uppercase text-[#1C1917]/90 leading-none">
               Two Paths.<br />
               <span className="text-[#FF4500]">Zero Compromise.</span>
             </h2>
           </div>
           
-          <div className="md:col-span-4 flex flex-col justify-end gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl">
             <div className="border-t-2 border-[#1C1917]/20 pt-6">
               <div className="flex items-center gap-2 mb-2">
                 <Radio className="h-4 w-4 text-[#FF4500]" />
@@ -163,7 +161,7 @@ export default function LandingPage() {
             <div className="bg-[#E4E2DD] p-8 md:12 hover:bg-[#1C1917] transition-colors duration-500 group cursor-pointer" onClick={() => router.push("/worker")}>
               <div className="text-xs font-bold uppercase tracking-widest mb-8 text-[#1C1917]/50 group-hover:text-[#F59E0B]">03 / Resilience</div>
               <h4 className="font-display text-3xl uppercase mb-4 text-[#1C1917] group-hover:text-white">Offline-First<br />Queue</h4>
-              <p className="text-sm font-medium text-[#1C1917]/70 group-hover:text-[#E4E2DD]">
+              <p className="text-sm font-medium text-[#1C1917]/70 group-hover:text-white">
                 LocalStorage sync ensures zero data loss in remote, low-bandwidth oil field environments.
               </p>
             </div>
@@ -192,7 +190,7 @@ export default function LandingPage() {
             <ul className="space-y-2 text-sm font-medium text-[#E4E2DD]/80">
               <li className="hover:text-white cursor-pointer" onClick={() => router.push("/dashboard")}>HSE Dashboard</li>
               <li className="hover:text-white cursor-pointer" onClick={() => router.push("/worker")}>Worker App</li>
-              <li className="hover:text-white cursor-pointer">API Documentation</li>
+              <li className="hover:text-white cursor-pointer" onClick={() => router.push("/login")}>Login Portal</li>
             </ul>
           </div>
           
@@ -200,7 +198,7 @@ export default function LandingPage() {
             <h5 className="text-xs font-bold uppercase tracking-widest text-[#F59E0B] mb-4">System</h5>
             <ul className="space-y-2 text-sm font-medium text-[#E4E2DD]/80">
               <li className="hover:text-white cursor-pointer">SBERT Model v1.2</li>
-              <li className="hover:text-white cursor-pointer">Fallback Logic</li>
+              <li className="hover:text-white cursor-pointer">Groq AI Qwen 27B</li>
               <li className="hover:text-white cursor-pointer">Status: Online</li>
             </ul>
           </div>

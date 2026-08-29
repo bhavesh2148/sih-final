@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/auth-context";
+import { apiFetch } from "../../lib/api-config";
 import {
   Mic,
   MicOff,
@@ -121,7 +122,7 @@ export default function WorkerApp() {
 
     if (isOnline) {
       try {
-        const res = await fetch("http://127.0.0.1:8000/api/v1/reports/submit", {
+        const res = await apiFetch("/api/v1/reports/submit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(reportData),
@@ -165,7 +166,7 @@ export default function WorkerApp() {
     let syncedCount = 0;
     for (const report of queue) {
       try {
-        const res = await fetch("http://127.0.0.1:8000/api/v1/reports/submit", {
+        const res = await apiFetch("/api/v1/reports/submit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(report),
@@ -193,7 +194,7 @@ export default function WorkerApp() {
   const triggerSOS = async () => {
     setIsEmergency(true);
     try {
-      await fetch("http://127.0.0.1:8000/api/v1/emergency/sos", {
+      await apiFetch("/api/v1/emergency/sos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

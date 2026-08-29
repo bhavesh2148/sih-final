@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/auth-context";
+import { apiFetch } from "../../lib/api-config";
 import {
   AlertTriangle, ShieldCheck, Activity, Clock,
   X, Link as LinkIcon, AlertCircle, TrendingUp,
@@ -172,9 +173,7 @@ export default function Dashboard() {
   const fetchData = async () => {
     setError(null);
     try {
-      const res = await fetch(
-        `http://127.0.0.1:8000/api/v1/reports/dashboard?t=${Date.now()}`
-      );
+      const res = await apiFetch(`/api/v1/reports/dashboard?t=${Date.now()}`);
       if (!res.ok) throw new Error(`Server responded ${res.status}`);
       const json = await res.json();
       setData(json);
@@ -195,8 +194,8 @@ export default function Dashboard() {
     setExplanation(null);
     try {
       const [twinsRes, explanationRes] = await Promise.all([
-        fetch(`http://127.0.0.1:8000/api/v1/reports/${reportId}/twins`),
-        fetch(`http://127.0.0.1:8000/api/v1/reports/${reportId}/explanation`),
+        apiFetch(`/api/v1/reports/${reportId}/twins`),
+        apiFetch(`/api/v1/reports/${reportId}/explanation`),
       ]);
       const twinsJson = await twinsRes.json();
       const explanationJson = await explanationRes.json();
@@ -214,8 +213,8 @@ export default function Dashboard() {
 
   const submitFeedback = async (reportId: string, feedback: string) => {
     try {
-      await fetch(
-        `http://127.0.0.1:8000/api/v1/reports/${reportId}/feedback?feedback=${feedback}`,
+      await apiFetch(
+        `/api/v1/reports/${reportId}/feedback?feedback=${feedback}`,
         { method: "POST" }
       );
       if (data) {
@@ -248,7 +247,7 @@ export default function Dashboard() {
 
     try {
       setBulkProgress(50);
-      const res = await fetch("http://127.0.0.1:8000/api/v1/reports/bulk-upload", {
+      const res = await apiFetch("/api/v1/reports/bulk-upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reports: reportsToIngest }),
