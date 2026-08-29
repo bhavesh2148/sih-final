@@ -205,6 +205,21 @@ def analyze_report_with_llm(report_text: str) -> dict:
 
 # --- API ENDPOINTS ---
 
+@app.get("/")
+def root_health():
+    return {
+        "status": "online",
+        "system": "SIFense HSE AI Platform",
+        "version": "2.6.0",
+        "endpoints": {
+            "docs": "/docs",
+            "dashboard": "/api/v1/reports/dashboard",
+            "submit": "/api/v1/reports/submit",
+            "bulk_upload": "/api/v1/reports/bulk-upload",
+            "sos": "/api/v1/emergency/sos"
+        }
+    }
+
 @app.post("/api/v1/emergency/sos")
 def trigger_sos(request: SOSRequest):
     """
