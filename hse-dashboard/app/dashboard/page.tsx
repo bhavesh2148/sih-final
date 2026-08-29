@@ -238,25 +238,52 @@ export default function Dashboard() {
     }));
   };
 
-  // ⚡ HIGH-SPEED PARALLEL BULK SCREENING
+  // ⚡ HIGH-SPEED PARALLEL BULK SCREENING (Supports 500+ Reports with Chunked Streaming Progress)
   const handleRunBulkUpload = async (reportsToIngest: { text: string; location?: string }[]) => {
     if (reportsToIngest.length === 0) return;
     setBulkProcessing(true);
-    setBulkProgress(20);
+    setBulkProgress(5);
     setBulkResult(null);
 
+    const CHUNK_SIZE = 100;
+    const totalReports = reportsToIngest.length;
+    let processedSoFar = 0;
+    let totalHighSif = 0;
+    let totalEmergencies = 0;
+    let allResults: any[] = [];
+
     try {
-      setBulkProgress(50);
-      const res = await apiFetch("/api/v1/reports/bulk-upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reports: reportsToIngest }),
-      });
-      setBulkProgress(85);
-      if (!res.ok) throw new Error("Bulk upload failed");
-      const result = await res.json();
+      for (let i = 0; i < totalReports; i += CHUNK_SIZE) {
+        const chunk = reportsToIngest.slice(i, i + CHUNK_SIZE);
+        const res = await apiFetch("/api/v1/reports/bulk-upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reports: chunk }),
+        });
+
+        if (!res.ok) throw new Error(`Bulk upload failed on batch ${Math.floor(i / CHUNK_SIZE) + 1}`);
+        const result = await res.json();
+        
+        processedSoFar += chunk.length;
+        totalHighSif += result.high_sif_count || 0;
+        totalEmergencies += result.emergencies_count || 0;
+        if (result.results) {
+          allResults = [...allResults, ...result.results];
+        }
+
+        const pct = Math.min(95, Math.round((processedSoFar / totalReports) * 100));
+        setBulkProgress(pct);
+      }
+
       setBulkProgress(100);
-      setBulkResult(result);
+      setBulkResult({
+        status: "success",
+        total_processed: processedSoFar,
+        high_sif_count: totalHighSif,
+        emergencies_count: totalEmergencies,
+        results: allResults.slice(0, 50),
+      });
+
       // Refresh dashboard with newly ingested batch
       await fetchData();
     } catch (err: any) {
@@ -266,7 +293,83 @@ export default function Dashboard() {
     }
   };
 
-  // Handle File Parsing (CSV, JSON, TXT)
+  // Robust CSV Quotation Tokenizer
+  const parseCsvLineTokens = (line: string): string[] => {
+    const result: string[] = [];
+    let cur = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if ((char === "," || char === "\t" || char === ";") && !inQuotes) {
+        result.push(cur.trim().replace(/^"|"$/g, ""));
+        cur = "";
+      } else {
+        cur += char;
+      }
+    }
+    result.push(cur.trim().replace(/^"|"$/g, ""));
+    return result;
+  };
+
+  // Narrative Text Scorer: Identifies true incident descriptions vs IDs/Dates/Severity
+  const scoreIncidentNarrative = (str: string): number => {
+    const s = str.trim();
+    if (!s) return -999;
+    
+    // Disqualify IDs, codes, pure numbers, dates, and severity tags
+    if (/^RPT[-_0-9]/i.test(s)) return -500;
+    if (/^INC[-_0-9]/i.test(s)) return -500;
+    if (/^ID[-_0-9]/i.test(s)) return -500;
+    if (/^\d+$/.test(s)) return -500;
+    if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/.test(s)) return -500;
+    if (/^\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}/.test(s)) return -500;
+    if (/^(high|medium|low|critical|minor|pending|closed|open|yes|no|true|false)$/i.test(s)) return -300;
+    
+    const wordCount = s.split(/\s+/).length;
+    if (wordCount === 1 && s.length < 25) return -100;
+    
+    let score = s.length + (wordCount * 25);
+    const lower = s.toLowerCase();
+    const keywords = [
+      "hazard", "worker", "valve", "gas", "fall", "rig", "scaffold", "harness", "pipe", 
+      "safety", "pressure", "leak", "panel", "electric", "crane", "bypassed", "untested", 
+      "floor", "lanyard", "hot work", "weld", "interlock", "damage", "broken", "unlocked", 
+      "cellar", "pit", "sump", "blowout", "line", "flare", "tongs", "derrick", "mast", 
+      "tank", "manifold", "flange", "operator", "crew", "shift", "equipment", "operation", 
+      "found", "reported", "observed", "during", "without", "failed"
+    ];
+    
+    for (const kw of keywords) {
+      if (lower.includes(kw)) score += 40;
+    }
+    
+    return score;
+  };
+
+  const scoreLocationCandidate = (str: string, chosenNarrative: string): number => {
+    const s = str.trim();
+    if (!s || s === chosenNarrative) return -999;
+    if (/^RPT[-_0-9]/i.test(s) || /^\d{4}[-/.]\d{1,2}/.test(s) || /^\d+$/.test(s)) return -500;
+    if (/^(high|medium|low|critical|minor|pending|closed|open)$/i.test(s)) return -300;
+    
+    let score = 10;
+    const lower = s.toLowerCase();
+    const locKeywords = [
+      "rig", "station", "plant", "wellhead", "drilling", "digboi", "dibrugarh", 
+      "sibsagar", "duliajan", "farm", "pipeline", "substation", "unit", "site", 
+      "bay", "workshop", "terminal", "warehouse", "refinery", "field", "section", "area"
+    ];
+    
+    for (const lk of locKeywords) {
+      if (lower.includes(lk)) score += 80;
+    }
+    
+    return score;
+  };
+
+  // Handle File Parsing (CSV, JSON, TXT with Intelligent Column Scoring)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -298,7 +401,7 @@ export default function Dashboard() {
                   }
             );
           }
-          setParsedFileRows(items.filter((i) => i.text.trim()));
+          setParsedFileRows(items.filter((i) => i.text && i.text.trim()));
         } catch (err) {
           alert("Invalid JSON format");
         }
@@ -306,24 +409,52 @@ export default function Dashboard() {
         // CSV or TXT
         const lines = content.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
         if (lines.length > 0) {
+          const firstLineTokens = parseCsvLineTokens(lines[0]);
+          const firstLineLower = lines[0].toLowerCase();
           const isHeader =
-            lines[0].toLowerCase().includes("location") ||
-            lines[0].toLowerCase().includes("incident") ||
-            lines[0].toLowerCase().includes("text") ||
-            lines[0].toLowerCase().includes("description");
+            firstLineLower.includes("location") ||
+            firstLineLower.includes("incident") ||
+            firstLineLower.includes("text") ||
+            firstLineLower.includes("desc") ||
+            firstLineLower.includes("hazard") ||
+            firstLineLower.includes("report_id") ||
+            firstLineLower.includes("date") ||
+            firstLineLower.includes("site");
+
           const dataLines = isHeader ? lines.slice(1) : lines;
+
           const items = dataLines.map((line) => {
-            if (line.includes(",") || line.includes("\t")) {
-              const parts = line
-                .split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
-                .map((p) => p.replace(/^"|"$/g, "").trim());
-              if (parts.length >= 2) {
-                return { location: parts[0] || "CSV File", text: parts[1] || parts[0] };
+            const parts = parseCsvLineTokens(line);
+            if (parts.length > 1) {
+              // Score all columns to find the true incident narrative
+              let bestText = parts[0];
+              let bestTextScore = -9999;
+              for (const part of parts) {
+                const score = scoreIncidentNarrative(part);
+                if (score > bestTextScore) {
+                  bestTextScore = score;
+                  bestText = part;
+                }
               }
+
+              // Score remaining columns to find the location name
+              let bestLoc = "OIL Site";
+              let bestLocScore = -9999;
+              for (const part of parts) {
+                if (part === bestText) continue;
+                const score = scoreLocationCandidate(part, bestText);
+                if (score > bestLocScore) {
+                  bestLocScore = score;
+                  bestLoc = part;
+                }
+              }
+
+              return { location: bestLoc || "OIL Site", text: bestText };
             }
             return { text: line, location: "Uploaded File" };
           });
-          setParsedFileRows(items.filter((i) => i.text.trim()));
+
+          setParsedFileRows(items.filter((i) => i.text && i.text.trim()));
         }
       }
     };
