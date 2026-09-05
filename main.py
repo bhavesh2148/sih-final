@@ -447,7 +447,7 @@ def fast_domain_sif_classifier(text: str) -> dict:
     confidence_score = calculate_confidence_score(text, energy_lvl, barrier_status, iogp_rules)
     controls = generate_recommended_controls(hazard, energy_type, barrier_failure, sif_score)
     reasoning = generate_engineering_reasoning(energy_type, energy_lvl, barrier_status, barrier_failure, hazard, consequence)
-    explanation = f"{energy_type} energy (Level {energy_lvl}/5) with {barrier_status.lower()} barrier integrity (Level {barrier_integrity}/5). SIF potential: {int(sif_score*100)}% ({tier})."
+    explanation = f"{energy_type} energy (Level {energy_lvl}/5) with {barrier_status.lower()} barrier integrity (Level {barrier_integrity}/5). SIF potential: {sif_score:.2f}/1.00 ({tier})."
 
     return {
         "is_emergency": is_emerg,
@@ -550,7 +550,7 @@ def analyze_report_with_llm(report_text: str) -> dict:
                 parsed.get("causal_chain", {}).get("consequence", "")
             )
             
-        parsed["explanation"] = f"{parsed.get('energy_type', 'Mechanical')} energy (Level {e_lvl}/5) with {parsed.get('barrier_status', 'degraded').lower()} barrier integrity (Level {b_lvl}/5). SIF potential: {int(sif_score*100)}% ({tier})."
+        parsed["explanation"] = f"{parsed.get('energy_type', 'Mechanical')} energy (Level {e_lvl}/5) with {parsed.get('barrier_status', 'degraded').lower()} barrier integrity (Level {b_lvl}/5). SIF potential: {sif_score:.2f}/1.00 ({tier})."
         return parsed
     except Exception as e:
         print(f"LLM Processing Error, using domain fallback: {e}")

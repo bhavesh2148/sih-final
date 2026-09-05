@@ -575,9 +575,9 @@ export default function WorkerApp() {
 
                 <div className="flex items-center justify-between border-b border-[#E4E2DD]/20 pb-2">
                   <div>
-                    <span className="text-[10px] text-[#E4E2DD]/60 uppercase font-black block">Quantified SIF Risk</span>
-                    <span className="text-xl font-black text-white">
-                      {Math.round((lastSubmissionResult.sif_score || 0.78) * 100)}% ({lastSubmissionResult.sif_score >= 0.80 ? "CRITICAL" : "HIGH RISK"})
+                    <span className="text-[10px] text-[#E4E2DD]/60 uppercase font-black block">Precursor SIF Potential</span>
+                    <span className="text-lg font-black text-white">
+                      {(lastSubmissionResult.sif_score ?? 0.78).toFixed(2)} / 1.00 — {lastSubmissionResult.sif_score >= 0.80 ? "CRITICAL" : "HIGH RISK"}
                     </span>
                   </div>
                   <div className="text-right">
@@ -587,6 +587,10 @@ export default function WorkerApp() {
                     </span>
                   </div>
                 </div>
+
+                <p className="text-[9px] text-[#F59E0B] font-bold">
+                  * SIF Potential (0.00–1.00) reflects relative precursor severity, not probability of occurrence.
+                </p>
 
                 {/* Immediate Directive */}
                 <div className="p-3 bg-[#FF4500] text-black font-black text-xs uppercase tracking-wide">

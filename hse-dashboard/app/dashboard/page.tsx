@@ -757,9 +757,12 @@ export default function Dashboard() {
                 Executive Safety Command // Operational Risk Posture
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono text-[#E4E2DD]/60">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <span className="text-[10px] font-mono text-[#E4E2DD]/80">
                 SCORING MODEL: SIF = 0.50E + 0.40B + 0.10M
+              </span>
+              <span className="text-[9px] text-[#F59E0B] font-bold bg-[#F59E0B]/10 px-2 py-0.5 border border-[#F59E0B]/30">
+                * Precursor Severity Index (0.00–1.00), Not Probability
               </span>
             </div>
           </div>
@@ -918,7 +921,7 @@ export default function Dashboard() {
                         <div className="flex justify-between items-center mb-2.5">
                           <div className="flex items-center gap-1.5">
                             <span className="px-2 py-0.5 bg-[#FF4500] text-[#1C1917] text-[10px] font-black uppercase tracking-wider">
-                              SIF: {Math.round(report.sif_score * 100)}%
+                              SIF Risk: {report.sif_score.toFixed(2)}
                             </span>
                             <span className="px-1.5 py-0.5 bg-[#1C1917] text-[#E4E2DD] text-[9px] font-black uppercase tracking-wider">
                               {report.sif_score >= 0.80 ? "CRITICAL" : "HIGH"}
@@ -1143,7 +1146,7 @@ export default function Dashboard() {
                               <span className={`px-1.5 py-0.2 text-[9px] font-black uppercase ${
                                 isCritical ? "bg-[#FF4500] text-white" : isHigh ? "bg-[#F59E0B] text-black" : "bg-emerald-600 text-white"
                               }`}>
-                                SIF: {Math.round(r.sif_score * 100)}%
+                                SIF: {r.sif_score.toFixed(2)}
                               </span>
                               <span className="text-[9px] text-emerald-800 font-bold">
                                 {conf}% conf
@@ -1331,8 +1334,8 @@ export default function Dashboard() {
               </h2>
               <div className="flex flex-wrap items-center gap-3 mt-3">
                 <div className="flex items-center gap-1.5 px-3 py-1 bg-[#FF4500] text-[#1C1917] text-xs font-black uppercase">
-                  <span>SIF Score: {Math.round(selectedReport.sif_score * 100)}%</span>
-                  <span>({selectedReport.sif_score >= 0.80 ? "CRITICAL" : selectedReport.sif_score >= 0.60 ? "HIGH" : "MEDIUM"})</span>
+                  <span>SIF Potential: {selectedReport.sif_score.toFixed(2)} / 1.00</span>
+                  <span>— {selectedReport.sif_score >= 0.80 ? "CRITICAL" : selectedReport.sif_score >= 0.60 ? "HIGH" : "MEDIUM"}</span>
                 </div>
                 <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-black uppercase">
                   <BrainCircuit className="h-3.5 w-3.5" />
@@ -1574,7 +1577,7 @@ export default function Dashboard() {
                 </p>
               </div>
               <div className="px-2.5 py-1 bg-[#FF4500] text-white text-xs font-black uppercase">
-                SIF: {Math.round(actionModalReport.sif_score * 100)}%
+                SIF Potential: {actionModalReport.sif_score.toFixed(2)} / 1.00
               </div>
             </div>
 
